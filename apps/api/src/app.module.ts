@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { AuditModule } from './audit/audit.module';
+import { AuthModule } from './auth/auth.module';
+import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
+import { RolesModule } from './roles/roles.module';
+import { TelemetryModule } from './telemetry/telemetry.module';
 import { validateEnv } from './config/env.validation';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -14,8 +17,11 @@ import { PrismaModule } from './prisma/prisma.module';
       validate: validateEnv,
     }),
     PrismaModule,
+    AuditModule,
+    AuthModule,
+    RolesModule,
+    FeatureFlagsModule,
+    TelemetryModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}

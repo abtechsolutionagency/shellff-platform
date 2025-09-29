@@ -1,9 +1,10 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import * as os from 'node:os';
 
-import { PrismaService } from './prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
-export class AppService {
+export class TelemetryService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getHealth() {
@@ -20,6 +21,18 @@ export class AppService {
       service: 'shellff-api',
       version: process.env.npm_package_version ?? '0.0.1',
       timestamp: new Date().toISOString(),
+    };
+  }
+
+  async getMetrics() {
+    const memory = process.memoryUsage();
+
+    return {
+      uptimeSeconds: process.uptime(),
+      loadAverage: os.loadavg(),
+      rss: memory.rss,
+      heapUsed: memory.heapUsed,
+      external: memory.external,
     };
   }
 }
