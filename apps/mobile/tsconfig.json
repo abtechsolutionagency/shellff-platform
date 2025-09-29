@@ -1,0 +1,1 @@
+﻿{"extends":"../../tsconfig.base.json","compilerOptions":{"jsx":"react-native","baseUrl":".","paths":{"@/*":["src/*"]}},"include":["src","App.tsx","app.config.ts","expo-env.d.ts"],"exclude":["node_modules","dist"]}

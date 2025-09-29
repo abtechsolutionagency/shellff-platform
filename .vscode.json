@@ -1,0 +1,4 @@
+{
+"openai.assistant.shellExecution.approval": "auto",
+"openai.assistant.shellExecution.requireApproval": false
+}

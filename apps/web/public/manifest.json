@@ -1,0 +1,81 @@
+
+{
+  "name": "Shellff - Decentralized Music Streaming",
+  "short_name": "Shellff",
+  "description": "The next generation of music streaming with Web2/Web3 integration",
+  "theme_color": "#9B5DE5",
+  "background_color": "#121212",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/",
+  "orientation": "portrait-primary",
+  "categories": ["music", "entertainment", "audio"],
+  "lang": "en",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "https://cdn.abacus.ai/images/7eb5a4bc-fcaa-4e54-9880-01aa4492b278.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "https://cdn.abacus.ai/images/0235b924-29e0-45f4-b2ae-4afd28770826.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "https://cdn.abacus.ai/images/6b98ea9b-7249-40d2-a20a-56bfcbdca00e.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "https://cdn.abacus.ai/images/27ece972-292a-4f1c-b183-31353d8fcda6.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "https://cdn.abacus.ai/images/bda0d262-5d1a-4a75-a8ab-bf949dace0b8.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "https://cdn.abacus.ai/images/53926280-0557-4f66-987f-150753d0d6cf.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Open your music dashboard",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "https://cdn.abacus.ai/images/bda0d262-5d1a-4a75-a8ab-bf949dace0b8.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Profile",
+      "short_name": "Profile",
+      "description": "View your profile",
+      "url": "/profile",
+      "icons": [
+        {
+          "src": "https://cdn.abacus.ai/images/bda0d262-5d1a-4a75-a8ab-bf949dace0b8.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

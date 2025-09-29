@@ -1,0 +1,257 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+ 
+@layer base {
+  :root {
+    /* Shellff Brand Colors - Light Theme */
+    --background: 0 0% 100%; /* #FFFFFF */
+    --foreground: 0 0% 7.1%; /* #121212 */
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 7.1%;
+ 
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 7.1%;
+ 
+    --primary: 265 85% 62%; /* #9B5DE5 - Neon Purple */
+    --primary-foreground: 0 0% 100%;
+ 
+    --secondary: 174 100% 48%; /* #00F5D4 - Teal */
+    --secondary-foreground: 0 0% 7.1%;
+ 
+    --muted: 0 0% 16.5%; /* #2A2A2A - Accent Gray */
+    --muted-foreground: 0 0% 70%; /* #B3B3B3 - Neutral Gray */
+ 
+    --accent: 174 100% 48%; /* #00F5D4 - Teal */
+    --accent-foreground: 0 0% 7.1%;
+ 
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 70%; /* #B3B3B3 */
+    --input: 0 0% 16.5%; /* #2A2A2A */
+    --ring: 265 85% 62%; /* #9B5DE5 */
+ 
+    --radius: 0.75rem;
+  }
+ 
+  .dark {
+    /* Shellff Brand Colors - Dark Theme (Default) */
+    --background: 0 0% 7.1%; /* #121212 - Dark Background */
+    --foreground: 0 0% 100%;
+ 
+    --card: 0 0% 16.5%; /* #2A2A2A - Accent Gray */
+    --card-foreground: 0 0% 100%;
+ 
+    --popover: 0 0% 16.5%;
+    --popover-foreground: 0 0% 100%;
+ 
+    --primary: 265 85% 62%; /* #9B5DE5 - Neon Purple */
+    --primary-foreground: 0 0% 100%;
+ 
+    --secondary: 174 100% 48%; /* #00F5D4 - Teal */
+    --secondary-foreground: 0 0% 7.1%;
+ 
+    --muted: 0 0% 16.5%; /* #2A2A2A */
+    --muted-foreground: 0 0% 70%; /* #B3B3B3 */
+ 
+    --accent: 0 0% 16.5%; /* #2A2A2A */
+    --accent-foreground: 0 0% 100%;
+ 
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+ 
+    --border: 0 0% 16.5%; /* #2A2A2A */
+    --input: 0 0% 16.5%;
+    --ring: 265 85% 62%; /* #9B5DE5 */
+  }
+}
+
+/* Brand Typography */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
+
+.font-poppins {
+  font-family: 'Poppins', sans-serif;
+}
+
+.font-inter {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Shellff Brand Utilities */
+.bg-shellff-dark {
+  background-color: #121212;
+}
+
+.bg-shellff-accent {
+  background-color: #2A2A2A;
+}
+
+.text-shellff-purple {
+  color: #9B5DE5;
+}
+
+.text-shellff-teal {
+  color: #00F5D4;
+}
+
+.text-shellff-neutral {
+  color: #B3B3B3;
+}
+
+.border-shellff-accent {
+  border-color: #2A2A2A;
+}
+
+.glow-purple {
+  box-shadow: 0 0 20px rgba(155, 93, 229, 0.3);
+}
+
+.glow-teal {
+  box-shadow: 0 0 20px rgba(0, 245, 212, 0.3);
+}
+ 
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    @apply font-inter;
+  }
+  
+  /* Ensure consistent behavior across all screen sizes */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Mobile-first responsive typography */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-poppins;
+  }
+  
+  /* Mobile scrolling improvements */
+  .scrollable {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@layer components {
+  /* Shellff Card Styles */
+  .shellff-card {
+    @apply bg-gray-800/50 border-gray-700 backdrop-blur-sm;
+  }
+  
+  .shellff-card-dark {
+    @apply bg-gray-900/50 border-gray-600;
+  }
+  
+  /* Responsive navigation */
+  .nav-mobile {
+    @apply md:hidden;
+  }
+  
+  .nav-desktop {
+    @apply hidden md:flex;
+  }
+  
+  /* Gradient backgrounds */
+  .bg-shellff-gradient {
+    @apply bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900;
+  }
+  
+  /* Responsive text sizes */
+  .text-responsive-xl {
+    @apply text-2xl md:text-3xl lg:text-4xl xl:text-5xl;
+  }
+  
+  .text-responsive-lg {
+    @apply text-xl md:text-2xl lg:text-3xl;
+  }
+  
+  /* Button enhancements */
+  .btn-shellff-primary {
+    @apply bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold transition-all duration-200;
+  }
+  
+  .btn-shellff-secondary {
+    @apply border-purple-500 text-purple-400 hover:bg-purple-500/20 transition-all duration-200;
+  }
+}
+
+@layer utilities {
+  /* Spacing utilities for mobile */
+  .safe-padding {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+  
+  .safe-margin {
+    @apply mx-4 sm:mx-6 lg:mx-8;
+  }
+  
+  /* Mobile-specific utilities */
+  .touch-action-manipulation {
+    touch-action: manipulation;
+  }
+  
+  .prevent-zoom {
+    touch-action: pan-x pan-y;
+  }
+  
+  /* Responsive grid */
+  .grid-responsive {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6;
+  }
+  
+  /* Mobile menu styles */
+  .mobile-menu-item {
+    @apply flex items-center gap-3 px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-700/50 transition-colors rounded-md;
+  }
+
+  /* Like button animations */
+  .animate-float-up {
+    animation: floatUp 0.8s ease-out forwards;
+  }
+
+  @keyframes floatUp {
+    0% {
+      opacity: 1;
+      transform: translateY(0) scale(0.5);
+    }
+    50% {
+      opacity: 1;
+      transform: translateY(-10px) scale(0.8);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-20px) scale(0.3);
+    }
+  }
+
+  /* Heart pulse animation */
+  .animate-heart-pulse {
+    animation: heartPulse 0.3s ease-in-out;
+  }
+
+  @keyframes heartPulse {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.3);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  /* Like status indicator */
+  .liked-indicator {
+    @apply text-red-500 fill-current drop-shadow-sm;
+  }
+
+  .unliked-indicator {
+    @apply text-gray-300 hover:text-red-400 transition-colors duration-200;
+  }
+}

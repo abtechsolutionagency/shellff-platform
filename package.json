@@ -1,0 +1,19 @@
+{
+  "name": "shellff-platform",
+  "private": true,
+  "packageManager": "pnpm@9.11.0",
+  "scripts": {
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "build": "turbo run build",
+    "dev:web": "pnpm --filter @shellff/web dev",
+    "dev:api": "pnpm --filter @shellff/api start:dev",
+    "dev:mobile": "pnpm --filter @shellff/mobile start"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "turbo": "^2.1.0",
+    "typescript": "^5.5.4"
+  }
+}

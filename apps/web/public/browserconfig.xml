@@ -1,0 +1,12 @@
+
+<?xml version="1.0" encoding="utf-8"?>
+<browserconfig>
+    <msapplication>
+        <tile>
+            <square70x70logo src="https://static.vecteezy.com/system/resources/thumbnails/020/932/488/small_2x/abacus-icon-for-your-website-design-logo-app-ui-free-vector.jpg>
+            <square150x150logo src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Nintendo_Switch_logo.svg/1200px-Nintendo_Switch_logo.svg.png>
+            <square310x310logo src="https://i.pinimg.com/originals/01/ab/b4/01abb4dc8b9dbb7cdf7ce13f951f4670.png>
+            <TileColor>#9B5DE5</TileColor>
+        </tile>
+    </msapplication>
+</browserconfig>
