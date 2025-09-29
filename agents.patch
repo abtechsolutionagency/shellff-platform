@@ -1,0 +1,58 @@
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/AGENTS.md b/AGENTS.md
+index 200541221e3e03c9cbeb8115510bfb73e4719a4b..7d4ffe4fc0573c1467d6c52bab75f69ce400298f 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -1,47 +1,49 @@
+ # AGENTS.md
+ 
+ ## Workflow rules
+ - Build by vertical slices in order. Start at Slice 0.
+ - Progress through slices continuously without pausing between them until the full plan is delivered.
+ - Maintain a single pnpm-powered monorepo from Slice 0 that includes packages for the web PWA, NestJS backend, and React Native shells.
+ - Each slice delivers the web/PWA and backend UX, APIs, data, tests, and ops. The React Native shells stay scaffolded until their dedicated implementation in **Slices 12–13**.
+ - After completing a slice, immediately run lint and tests, resolve every failure, print the checkpoint log, and continue straight to the next slice without waiting for additional approval.
++- Confirm CI is green before declaring the slice finished; rerun and repair any failing checks so each slice ships only after tests prove it production-ready.
+ - Push notifications land in **Slice 10**. Do not start them earlier even if other docs suggest otherwise.
+ - Offline downloads are part of the MVP: scaffold the offline shell in Slice 0 and deliver the full download experience with the playback slice per the vertical plan.
+ - Treat the `.tsx` components bundled in `shellff-ui-ux.zip` as canonical starting points: import them into the monorepo, refactor them into production-ready shared components with full accessibility, strict TypeScript, and automated tests, and build any referenced screens or flows even if you must create missing ones to maintain design fidelity.
+ 
+ ## Overview
+ - DeepAgent builds Shellff in vertical slices (Slice 0–13).
+ - Web/PWA UX, backend APIs, DB migrations, tests, and ops ship in every slice. React Native implementation is deferred to **Slices 12–13**, though the packages live in the monorepo from the start for consistency.
+ - Figma Make screens (in `shellff-ui-ux.zip`) must guide UI/UX.
+ - Analytics events tracked from Slice 0.
+   
+ ### Rules for Execution
+ 1. After finishing each slice (Slice N):
+ - **Run all tests** (`pnpm test` or equivalent).
+ - **Debug and fix all errors** until the tests pass.
++- **Verify continuous integration pipelines are green** before considering the slice complete.
+ 
+ ## UI and UX integration
+ - DeepAgent must use the Figma Make–generated screens and components stored in `shellff-ui-ux.zip` at repo root.
+ - Extract and normalize into:
+   - Components → `src/components/`
+   - Pages → `src/pages/`
+ - Follow Shellff palette, typography, spacing. Extend the system for missing screens. Do not duplicate components.
+ 
+ ## Signup and account switching
+ - Registration shows Listener. Creator. Listener and Creator.
+ - If Listener and Creator. After login show a choice screen. Listener Dashboard or Creator Dashboard. Add a switch in both dashboards.
+ - If only one role at signup. Show Become a Creator or Become a Listener in the menu.
+ - Switching shows a rolling logo screen. Must complete within 5 seconds.
+ 
+ ## Roles Model
+  - Use join table (users_roles).
+  - users table holds base identity.
+  - roles table lists roles (listener, creator, admin, moderator).
+  - users_roles maps them, allowing multi-role accounts (Listener & Creator).
+ This supports switching dashboards and Creator upgrades.
+ 
+ ## Creator ID
+ - When a Listener becomes a Creator. Generate a unique Creator ID.
+ - Store in creators table with link to user_id.
+ - Use Creator ID in uploads, wallet, analytics, public profiles.
+ 
+EOF
+)
