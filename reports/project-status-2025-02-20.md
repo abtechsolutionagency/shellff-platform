@@ -1,25 +1,33 @@
 # Project Status — 2025-02-20
 
-## Completed Additions & Changes
-- Established a pnpm-driven monorepo toolchain with Turbo scripts for lint, typecheck, test, and build, plus shared dev servers for each package. 【F:package.json†L1-L28】
-- Adopted a unified flat ESLint 9 configuration that wires browser, Node, and Vitest globals and applies package-specific overrides across the workspace. 【F:eslint.config.mjs†L4-L109】
-- Added a GitHub Actions workflow that caches pnpm/Turbo assets and runs lint, typecheck, and test gates on pushes and pull requests. 【F:.github/workflows/ci.yml†L1-L57】
-- Introduced Vitest configurations for the web and mobile packages to standardize test discovery and environments. 【F:apps/web/vitest.config.ts†L1-L11】【F:apps/mobile/vitest.config.ts†L1-L10】
-- Augmented Prisma client typings for the web app to expose enum helpers and decimal coercion the UI relies on. 【F:apps/web/types/prisma.d.ts†L1-L83】
-- Captured the latest Turbo, lint, typecheck, and test findings in an audit report to guide the next remediation steps. 【F:reports/quality-gates-2025-02-19.md†L1-L25】
-- Authored Slice 0’s Prisma schema, initial migration, and seed data covering users, roles, audit logs, and feature flags. 【F:apps/api/prisma/schema.prisma†L1-L140】【F:apps/api/prisma/migrations/20250220000000_slice0_init/migration.sql†L1-L108】【F:apps/api/prisma/seed.ts†L1-L52】
-- Hardened the NestJS API bootstrap with environment validation, a global Prisma module, and a database-backed health check. 【F:apps/api/src/app.module.ts†L1-L19】【F:apps/api/src/config/env.validation.ts†L1-L70】【F:apps/api/src/prisma/prisma.module.ts†L1-L9】【F:apps/api/src/app.service.ts†L1-L22】
-- Rebuilt the install toolkit with an environment template plus resilient bootstrap and seeding scripts for Unix and Windows contributors. 【F:install/.env.example†L1-L11】【F:install/scripts/bootstrap.sh†L1-L27】【F:install/scripts/bootstrap.ps1†L1-L33】【F:install/scripts/seed.sh†L1-L5】【F:install/scripts/seed.ps1†L1-L6】
-- Restored Terraform Slice 0 scaffolding across network, database, cache, storage, observability, and app modules with a staging environment wiring. 【F:infra/terraform/modules/network/main.tf†L1-L56】【F:infra/terraform/modules/database/main.tf†L1-L32】【F:infra/terraform/modules/cache/main.tf†L1-L28】【F:infra/terraform/modules/storage/main.tf†L1-L24】【F:infra/terraform/modules/observability/main.tf†L1-L10】【F:infra/terraform/modules/app/main.tf†L1-L49】【F:infra/terraform/environments/staging/main.tf†L1-L39】
-
-## Outstanding Work
-- Slice-level foundational gaps remain from the original desktop audit: Slice 0 lacks complete schema migrations, infra scaffolding, and hardened tooling; Slices 1–13 require their respective domain implementations. 【F:where-we-are.txt†L39-L109】
-- The physical unlock experience still needs database migrations, aligned code formats, real barcode scanning, and end-to-end redemption plumbing before it can be considered production-ready. 【F:where-we-are.txt†L93-L108】
-- Connect the new infrastructure modules to CI/CD workflows and document runbooks before enabling resource creation. 【F:infra/terraform/README.md†L1-L9】
-- Continue the Slice 0 remediation by layering API endpoints, domain models, and storage integrations on top of the restored database foundation. 【F:where-we-are.txt†L55-L76】
-
-## Next Actions
-1. Wire Prisma migration and seed tasks into the CI pipelines so the baseline schema ships automatically with each build. 【F:apps/api/package.json†L1-L35】【F:.github/workflows/ci.yml†L1-L57】
-2. Finalise Docker Compose documentation by adding Prisma workflow notes and ready-state checks for the restored services. 【F:docker-compose.yml†L1-L43】【F:install/docker/README.md†L1-L8】
-3. Continue Slice 0 by implementing auth/account APIs, event logging, and telemetry on top of the new database primitives. 【F:where-we-are.txt†L55-L76】
-4. Schedule the “Unlock issues” remediation track to deliver real barcode decoding, redemption persistence, and automated coverage alongside the slice roadmap. 【F:where-we-are.txt†L93-L108】
+## 1. Completed Work to Date
+### Monorepo, Tooling, and Quality Gates
+- Rebuilt the workspace around pnpm and Turbo so lint, typecheck, test, and build steps fan out across every package via shared scripts and pipeline definitions, establishing the slice roadmap’s required tooling baseline.【F:package.json†L1-L28】【F:pnpm-workspace.yaml†L1-L4】【F:turbo.json†L1-L1】
+- Centralised linting through a flat ESLint 9 configuration that unifies browser, Node, and Vitest globals with package-aware overrides, keeping React, Next.js, API, and script code under a single ruleset.【F:eslint.config.mjs†L4-L256】
+- Restored automated gates in CI by running pnpm install, lint, typecheck, and test on every push/PR, giving the project a green-light requirement before shipping future slices.【F:.github/workflows/ci.yml†L1-L57】
+### Backend & Data Foundations
+- Authored Slice 0’s Prisma schema, baseline migration, and seed script to cover users, creator profiles, role assignments, audit logs, and feature flags, matching the roles model mandated in the vertical plan.【F:apps/api/prisma/schema.prisma†L1-L120】【F:apps/api/prisma/migrations/20250220000000_slice0_init/migration.sql†L1-L112】【F:apps/api/prisma/seed.ts†L1-L71】
+- Bootstrapped NestJS with environment validation, a global Prisma module, and a database-backed health check plus unit coverage so the API fails fast on misconfiguration and reports readiness through tests.【F:apps/api/src/app.module.ts†L1-L21】【F:apps/api/src/config/env.validation.ts†L1-L75】【F:apps/api/src/prisma/prisma.module.ts†L1-L10】【F:apps/api/src/app.service.ts†L1-L25】【F:apps/api/src/app.service.spec.ts†L1-L18】
+### Web PWA Developer Experience
+- Added local Vitest type declarations, TS config wiring, and a custom runner script so the web workspace can type-check and execute tests without relying on hoisted dependencies from other packages.【F:apps/web/types/vitest/index.d.ts†L1-L163】【F:apps/web/types/vitest/globals.d.ts†L1-L23】【F:apps/web/types/vitest/config.d.ts†L1-L43】【F:apps/web/types/vitest/importMeta.d.ts†L1-L11】【F:apps/web/tsconfig.json†L1-L24】【F:apps/web/scripts/run-vitest.mjs†L1-L50】
+- Updated the web package scripts so `pnpm --filter @shellff/web test` resolves the Vitest CLI from pnpm’s virtual store, keeping local and CI executions aligned.【F:apps/web/package.json†L1-L29】【F:apps/web/scripts/run-vitest.mjs†L1-L50】
+### Install, Ops, and Infrastructure Scaffolding
+- Restored install tooling with a committed environment template and cross-platform bootstrap and seed scripts that set up `.env`, verify prerequisites, and run Prisma migrations/seeds for contributors.【F:install/.env.example†L1-L11】【F:install/scripts/bootstrap.sh†L1-L30】【F:install/scripts/bootstrap.ps1†L1-L38】【F:install/scripts/seed.sh†L1-L5】【F:install/scripts/seed.ps1†L1-L5】
+- Reintroduced Docker Compose services for Postgres, Redis, MinIO, and Prometheus plus a matching Prometheus scrape config to support local Slice 0 development flows.【F:docker-compose.yml†L1-L51】【F:monitoring/prometheus.yml†L1-L7】
+- Rebuilt Terraform modules for network, database, cache, storage, observability, and app workloads, then wired a staging environment layer with opt-in toggles for each resource group.【F:infra/terraform/modules/network/main.tf†L1-L68】【F:infra/terraform/modules/database/main.tf†L1-L43】【F:infra/terraform/modules/cache/main.tf†L1-L39】【F:infra/terraform/modules/storage/main.tf†L1-L29】【F:infra/terraform/modules/observability/main.tf†L1-L9】【F:infra/terraform/modules/app/main.tf†L1-L58】【F:infra/terraform/environments/staging/main.tf†L1-L59】【F:infra/terraform/environments/staging/variables.tf†L1-L68】
+## 2. Remaining Scope
+### Slice 0 Continuation (API, Data, and Tooling)
+- Wire Prisma migration and seed tasks into CI so the baseline schema deploys automatically; the current workflow runs lint/type/test only, leaving migrations manual.【F:.github/workflows/ci.yml†L47-L57】【F:apps/api/package.json†L1-L41】
+- Expand API surface, auditing, and telemetry on top of the new schema to cover auth flows, feature flag evaluation, and initial analytics logging as planned in the Slice 0 remediation notes.【F:where-we-are.txt†L55-L108】【F:apps/api/prisma/schema.prisma†L1-L120】
+- Confirm Docker/Terraform documentation and readiness checks reflect the restored services so onboarding scripts guide contributors through database availability before seeds run.【F:docker-compose.yml†L1-L51】【F:install/scripts/seed.sh†L1-L5】【F:where-we-are.txt†L59-L76】
+### “Unlock issues” Remediation Track
+- Finish the pending migrations, seeds, and API updates for the physical unlock flow so barcode decoding, redemption persistence, and release access records align with the new schema guidance documented earlier in the audit.【F:where-we-are.txt†L81-L189】
+- Add automated coverage (unit/integration/E2E) for redemption journeys once the domain changes land to keep regressions from reappearing.【F:where-we-are.txt†L93-L108】
+### Frontend & Shared UX
+- Align Next.js pages and shared components with the new backend contracts once APIs ship, ensuring role switching, offline shell, and feature flag-driven UI states stay responsive across breakpoints per design guardrails.【F:apps/web/tsconfig.json†L1-L24】【F:where-we-are.txt†L37-L76】
+- Maintain and expand local Vitest and integration test coverage after the CLI wiring by enabling actual test suites (currently sparse) and gating them in CI to prevent regressions.【F:apps/web/package.json†L1-L29】【F:.github/workflows/ci.yml†L50-L57】
+### Infrastructure & Operations
+- Connect Terraform modules to real AWS accounts with backend configuration, state management, and CI/CD hooks; today they are scaffolding only with default toggles disabled.【F:infra/terraform/environments/staging/main.tf†L1-L59】【F:infra/terraform/environments/staging/variables.tf†L1-L68】
+- Document runbooks for Docker, Prisma migrations, and Terraform so future slices can rely on repeatable ops workflows without rediscovery.【F:install/scripts/bootstrap.sh†L1-L30】【F:install/scripts/seed.sh†L1-L5】【F:infra/terraform/environments/staging/terraform.tfvars.example†L1-L11】
+## 3. Immediate Next Action
+- Resume by updating the CI workflow to execute `pnpm --filter @shellff/api db:migrate` (and optionally `db:seed`) after installs, ensuring every build applies the Slice 0 schema automatically before advancing to additional API work.【F:.github/workflows/ci.yml†L47-L57】【F:apps/api/package.json†L1-L41】
