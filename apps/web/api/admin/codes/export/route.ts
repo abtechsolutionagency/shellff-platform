@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
 
     const csvRows = [
       headers.join(','), // Header row
-      ...codes.map(code => {
+      ...codes.map((code: any) => {
         const creatorName = code.creator?.firstName && code.creator?.lastName 
           ? `${code.creator.firstName} ${code.creator.lastName}`
           : code.creator?.username || 'Unknown';

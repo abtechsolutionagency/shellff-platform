@@ -73,7 +73,7 @@ export async function GET(_request: NextRequest) {
       });
     }
 
-    const formattedMethods = paymentMethods.map(method => ({
+    const formattedMethods = paymentMethods.map((method: any) => ({
       id: method.id,
       provider: method.provider,
       name: method.name,

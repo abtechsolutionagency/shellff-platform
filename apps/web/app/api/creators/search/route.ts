@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Format the results
-    const formattedCreators = creators.map((creator) => ({
+    const formattedCreators = creators.map((creator: any) => ({
       id: creator.id,
       name: [creator.firstName, creator.lastName].filter(Boolean).join(' ') || creator.username,
       username: creator.username,

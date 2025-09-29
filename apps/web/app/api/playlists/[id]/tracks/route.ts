@@ -85,7 +85,7 @@ export async function GET(
     });
 
     // Format response with like status
-    const tracks = playlistTracks.map((pt) => ({
+    const tracks = playlistTracks.map((pt: any) => ({
       ...pt.track,
       isLiked: pt.track.likes ? pt.track.likes.length > 0 : false,
       likes: undefined, // Remove likes array from response

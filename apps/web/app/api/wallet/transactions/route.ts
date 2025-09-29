@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       select: { id: true }
     });
 
-    const walletIds = userWallets.map(w => w.id);
+    const walletIds = userWallets.map((w: any) => w.id);
 
     if (walletIds.length === 0) {
       return NextResponse.json({
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
       })
     ]);
 
-    const formattedTransactions = transactions.map(tx => ({
+    const formattedTransactions = transactions.map((tx: any) => ({
       id: tx.id,
       type: tx.type,
       status: tx.status,

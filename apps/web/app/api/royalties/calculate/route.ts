@@ -262,7 +262,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({
-      payments: royaltyPayments.map(payment => ({
+      payments: royaltyPayments.map((payment: any) => ({
         id: payment.id,
         period: payment.period,
         amount: parseFloat(payment.amount.toString()),

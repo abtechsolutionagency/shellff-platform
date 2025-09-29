@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     const totalCount = await prisma.groupCodePack.count({ where });
 
     // Transform the data for response
-    const transformedPacks = groupPacks.map(pack => ({
+    const transformedPacks = groupPacks.map((pack: any) => ({
       id: pack.id,
       name: pack.name,
       description: pack.description,
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
       discountedPrice: pack.discountedPrice.toString(),
       discountPercentage: pack.discountPercentage,
       release: pack.release,
-      members: pack.packMembers.map(member => ({
+      members: pack.packMembers.map((member: any) => ({
         id: member.id,
         role: member.role,
         joinedAt: member.joinedAt,
@@ -107,10 +107,10 @@ export async function GET(request: NextRequest) {
       })),
       stats: {
         totalMembers: pack._count.packMembers,
-        redeemedCount: pack.packMembers.filter(m => m.hasRedeemed).length,
+        redeemedCount: pack.packMembers.filter((m: any) => m.hasRedeemed).length,
         availableCodes: pack._count.unlockCodes,
         redemptionRate: pack._count.packMembers > 0 
-          ? Math.round((pack.packMembers.filter(m => m.hasRedeemed).length / pack._count.packMembers) * 100)
+          ? Math.round((pack.packMembers.filter((m: any) => m.hasRedeemed).length / pack._count.packMembers) * 100)
           : 0
       }
     }));

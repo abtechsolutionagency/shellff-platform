@@ -211,7 +211,7 @@ export class PricingCalculator {
         return this.DEFAULT_TIERS;
       }
       
-      return dbTiers.map(tier => ({
+      return dbTiers.map((tier: any) => ({
         id: tier.id,
         minQuantity: tier.minQuantity,
         maxQuantity: tier.maxQuantity,

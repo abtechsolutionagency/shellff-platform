@@ -2,6 +2,22 @@ import { PrismaClient, DiscountType, PurchaseType, DiscountTarget, DiscountRule 
 
 const prisma = new PrismaClient();
 
+const toNumeric = (value: number | { toNumber?: () => number } | null | undefined): number => {
+  if (value == null) {
+    return 0;
+  }
+
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  if (typeof value.toNumber === 'function') {
+    return value.toNumber();
+  }
+
+  return Number(value);
+};
+
 interface PurchaseContext {
   userId: string;
   purchaseType: PurchaseType;
@@ -194,11 +210,11 @@ export class DiscountEngine {
   ): Promise<number> {
     switch (rule.discountType) {
       case DiscountType.PERCENTAGE:
-        const percentage = rule.percentageDiscount?.toNumber() || 0;
+        const percentage = toNumeric(rule.percentageDiscount);
         return currentAmount * percentage;
 
       case DiscountType.FIXED_AMOUNT:
-        const fixedAmount = rule.fixedAmountDiscount?.toNumber() || 0;
+        const fixedAmount = toNumeric(rule.fixedAmountDiscount);
         return Math.min(fixedAmount, currentAmount);
 
       case DiscountType.BUY_X_GET_Y:
@@ -292,11 +308,11 @@ export class DiscountEngine {
    * Check if amount constraints are met
    */
   private static isAmountConstraintMet(rule: DiscountRule, amount: number): boolean {
-    if (rule.minOrderAmount && amount < rule.minOrderAmount.toNumber()) {
+    if (rule.minOrderAmount && amount < toNumeric(rule.minOrderAmount)) {
       return false;
     }
-    
-    if (rule.maxOrderAmount && amount > rule.maxOrderAmount.toNumber()) {
+
+    if (rule.maxOrderAmount && amount > toNumeric(rule.maxOrderAmount)) {
       return false;
     }
 
@@ -357,7 +373,7 @@ export class DiscountEngine {
     finalAmount: number,
     purchaseType: PurchaseType
   ): Promise<void> {
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // Record usage
       await tx.discountUsage.create({
         data: {

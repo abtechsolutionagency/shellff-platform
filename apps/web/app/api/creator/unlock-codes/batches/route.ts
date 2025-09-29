@@ -47,7 +47,7 @@ export async function GET(_request: NextRequest) {
     });
 
     // Transform data to match expected format
-    const transformedBatches = await Promise.all(batches.map(async (batch) => {
+    const transformedBatches = await Promise.all(batches.map(async (batch: any) => {
       // Get release info
       const release = await prisma.release.findFirst({
         where: {
@@ -60,7 +60,7 @@ export async function GET(_request: NextRequest) {
       });
 
       // Count redeemed codes
-      const redeemedCount = batch.unlockCodes.filter(code => code.status === 'redeemed').length;
+      const redeemedCount = batch.unlockCodes.filter((code: any) => code.status === 'redeemed').length;
 
       return {
         id: batch.id,

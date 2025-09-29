@@ -33,10 +33,10 @@ export async function GET(_request: NextRequest) {
     });
 
     const walletTypes = ['PURCHASES', 'EARNINGS'] as const;
-    const walletsToCreate = [];
+    const walletsToCreate: Array<Record<string, unknown>> = [];
 
     for (const type of walletTypes) {
-      const existingWallet = existingWallets.find(w => w.type === type);
+      const existingWallet = existingWallets.find((w: any) => w.type === type);
       if (!existingWallet) {
         walletsToCreate.push({
           userId,
@@ -67,7 +67,7 @@ export async function GET(_request: NextRequest) {
       }
     });
 
-    const walletBalances = wallets.map(wallet => ({
+    const walletBalances = wallets.map((wallet: any) => ({
       type: wallet.type,
       balance: parseFloat(wallet.balance.toString()),
       currency: wallet.currency,

@@ -296,7 +296,7 @@ export async function redeemUnlockCode(
   }
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       const unlockCode = await tx.unlockCode.findUnique({
         where: { code: normalizedCode },
         include: {
@@ -449,8 +449,8 @@ export async function getUserRedemptionStats(options: {
 
     return {
       totalRedemptions: logs.length,
-      successfulRedemptions: logs.filter((entry) => entry.success).length,
-      failedRedemptions: logs.filter((entry) => !entry.success).length,
+      successfulRedemptions: logs.filter((entry: any) => entry.success).length,
+      failedRedemptions: logs.filter((entry: any) => !entry.success).length,
       recentRedemptions: logs.slice(0, 10),
       activeAccessCount,
     };

@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Group by category
-    const tagsByCategory = tags.reduce((acc, tag) => {
+    const tagsByCategory = tags.reduce((acc: Record<string, any[]>, tag: any) => {
       if (!acc[tag.category]) {
         acc[tag.category] = [];
       }
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     }, {} as Record<string, any[]>);
 
     return NextResponse.json({
-      tags: category ? tags.map(tag => ({
+      tags: category ? tags.map((tag: any) => ({
         id: tag.id,
         name: tag.name,
         category: tag.category,

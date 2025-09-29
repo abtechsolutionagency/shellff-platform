@@ -37,19 +37,15 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Cache Turbo
-        - name: Get pnpm store directory
-         id: pnpm-cache
-         run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_ENV
-
-      - uses: actions/cache@v4
-         with:
-         path: ${{ env.STORE_PATH }}
-         key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-         restore-keys: |
-         ${{ runner.os }}-pnpm-
+        uses: actions/cache@v4
+        with:
+          path: node_modules/.cache/turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Run lint
         run: pnpm lint

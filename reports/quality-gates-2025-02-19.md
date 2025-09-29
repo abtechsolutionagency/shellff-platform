@@ -1,4 +1,4 @@
-# Quality Gate Audit - 2025-02-19
+# Quality Gate Audit — 2025-02-19
 
 ## Commands Executed
 - `pnpm lint`

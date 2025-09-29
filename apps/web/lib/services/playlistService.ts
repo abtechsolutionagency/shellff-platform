@@ -2,6 +2,11 @@
 import { Playlist, PlaylistTrack } from '@prisma/client';
 
 export interface PlaylistWithTracks extends Playlist {
+  id: string;
+  name: string;
+  description: string | null;
+  coverArt: string | null;
+  isPublic: boolean;
   _count: {
     tracks: number;
   };

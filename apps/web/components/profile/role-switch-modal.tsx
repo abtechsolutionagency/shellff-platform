@@ -77,7 +77,12 @@ export function RoleSwitchModal({ currentRole, username: _username, sciId, isRol
     }
   };
 
-  const roleInfo = {
+  const roleInfo: Record<Extract<UserType, 'LISTENER' | 'CREATOR'>, {
+    title: string;
+    description: string;
+    icon: typeof Headphones | typeof Music;
+    features: string[];
+  }> = {
     LISTENER: {
       title: 'Listener',
       description: 'Discover, stream, and enjoy music from creators around the world',
@@ -101,12 +106,19 @@ export function RoleSwitchModal({ currentRole, username: _username, sciId, isRol
         'Interact with your fanbase',
         'Priority support and tools',
         sciId ? undefined : 'Get your unique Creator ID (SCI)',
-      ].filter(Boolean),
+      ].filter((feature): feature is string => Boolean(feature)),
     },
   };
 
-  const currentInfo = roleInfo[currentRole];
-  const targetInfo = roleInfo[targetRole];
+  const roleKey = (targetRole === UserType.CREATOR || targetRole === UserType.LISTENER)
+    ? targetRole
+    : UserType.LISTENER;
+  const currentKey = (currentRole === UserType.CREATOR || currentRole === UserType.LISTENER)
+    ? currentRole
+    : UserType.LISTENER;
+
+  const currentInfo = roleInfo[currentKey];
+  const targetInfo = roleInfo[roleKey];
   const CurrentIcon = currentInfo.icon;
   const TargetIcon = targetInfo.icon;
 
@@ -138,7 +150,7 @@ export function RoleSwitchModal({ currentRole, username: _username, sciId, isRol
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-sm">
-                  {currentInfo.features.map((feature, index) => (
+                  {currentInfo.features.map((feature: string, index: number) => (
                     <li key={index} className="flex items-start gap-2 text-gray-300">
                       <div className="h-1.5 w-1.5 bg-purple-400 rounded-full mt-2 flex-shrink-0" />
                       <span>{feature}</span>
@@ -165,7 +177,7 @@ export function RoleSwitchModal({ currentRole, username: _username, sciId, isRol
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-sm">
-                  {targetInfo.features.map((feature, index) => (
+                  {targetInfo.features.map((feature: string, index: number) => (
                     <li key={index} className="flex items-start gap-2 text-gray-300">
                       <div className="h-1.5 w-1.5 bg-green-400 rounded-full mt-2 flex-shrink-0" />
                       <span>{feature}</span>

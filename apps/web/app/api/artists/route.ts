@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     const totalPages = Math.ceil(totalCount / limit);
 
     return NextResponse.json({
-      artists: artists.map(artist => ({
+      artists: artists.map((artist: any) => ({
         id: artist.id,
         name: artist.name,
         bio: artist.bio,
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
         albumCount: artist._count.albums,
         trackCount: artist._count.tracks,
         createdAt: artist.createdAt,
-        tags: artist.artistTags.map(at => at.tag)
+        tags: artist.artistTags.map((at: any) => at.tag)
       })),
       pagination: {
         page,

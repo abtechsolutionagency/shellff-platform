@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has already redeemed this voucher
-    const existingRedemption = voucher.redemptions.find(r => r.userId === userId);
+    const existingRedemption = voucher.redemptions.find((r: any) => r.userId === userId);
     if (existingRedemption) {
       return NextResponse.json(
         { error: 'You have already redeemed this voucher' },
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     const voucherAmount = parseFloat(voucher.amount.toString());
 
     // Use a transaction to ensure atomicity
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // Create voucher redemption record
       const redemption = await tx.voucherRedemption.create({
         data: {

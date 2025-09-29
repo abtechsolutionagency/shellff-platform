@@ -194,13 +194,13 @@ export async function GET(request: NextRequest) {
       take: 10
     });
 
-    const formattedTopCreators = topCreators.map(creator => ({
+    const formattedTopCreators = topCreators.map((creator: any) => ({
       id: creator.userId,
-      name: creator.firstName && creator.lastName 
+      name: creator.firstName && creator.lastName
         ? `${creator.firstName} ${creator.lastName}`
         : creator.username,
       codesGenerated: creator._count.createdUnlockCodes,
-      revenue: creator.codePaymentTransactions.reduce((sum, tx) => sum + Number(tx.amountUsd), 0)
+      revenue: creator.codePaymentTransactions.reduce((sum: number, tx: any) => sum + Number(tx.amountUsd), 0)
     }));
 
     return NextResponse.json({

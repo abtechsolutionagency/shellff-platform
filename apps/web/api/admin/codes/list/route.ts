@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Format the response
-    const formattedCodes = codes.map(code => ({
+    const formattedCodes = codes.map((code: any) => ({
       id: code.id,
       code: code.code,
       releaseId: code.releaseId,

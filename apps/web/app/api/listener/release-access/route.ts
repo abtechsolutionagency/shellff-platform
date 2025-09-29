@@ -53,7 +53,7 @@ export async function GET() {
       },
     });
 
-    const items = accesses.map((access) => {
+    const items = accesses.map((access: any) => {
       const { release } = access;
       const artist = formatArtistName(release.creator);
       const expiresAt = access.expiresAt ?? null;

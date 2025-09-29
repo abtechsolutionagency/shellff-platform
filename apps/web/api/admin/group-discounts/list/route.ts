@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     const totalCount = await prisma.groupDiscount.count({ where });
 
     // Transform the data for response
-    const transformedDiscounts = groupDiscounts.map(discount => ({
+    const transformedDiscounts = groupDiscounts.map((discount: any) => ({
       id: discount.id,
       name: discount.name,
       discountType: discount.discountType,

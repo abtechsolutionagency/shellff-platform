@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
         ]
       });
 
-      results.tracks = tracks.map(track => ({
+      results.tracks = tracks.map((track: any) => ({
         id: track.id,
         title: track.title,
         duration: track.duration,
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
         }
       });
 
-      results.albums = albums.map(album => ({
+      results.albums = albums.map((album: any) => ({
         id: album.id,
         title: album.title,
         coverArt: album.coverArt,
@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
         ]
       });
 
-      results.artists = artists.map(artist => ({
+      results.artists = artists.map((artist: any) => ({
         id: artist.id,
         name: artist.name,
         avatar: artist.avatar,
@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
       query,
       results,
       totalCounts,
-      hasMoreResults: Object.values(totalCounts).some(count => count === limit)
+      hasMoreResults: Object.values(totalCounts).some((count: number) => count === limit)
     });
 
   } catch (error) {

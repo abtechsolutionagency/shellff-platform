@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Format response
-    const formattedHistory = listeningHistory.map(entry => ({
+    const formattedHistory = listeningHistory.map((entry: any) => ({
       id: entry.id,
       lastPlayed: entry.lastPlayed,
       playCount: entry.playCount,
@@ -193,7 +193,7 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    const formattedTracks = recentTracks.map(entry => ({
+    const formattedTracks = recentTracks.map((entry: any) => ({
       id: entry.track.id,
       title: entry.track.title,
       artist: entry.track.artist.name,

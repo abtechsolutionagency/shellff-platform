@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
 
     // Process timeline data to group by date
     const timelineMap = new Map<string, number>();
-    redemptionTimeline.forEach((entry) => {
+    redemptionTimeline.forEach((entry: any) => {
       const date = entry.redeemedAt.toISOString().split('T')[0];
       timelineMap.set(date, (timelineMap.get(date) || 0) + entry._count.id);
     });
@@ -158,7 +158,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const totalRevenue = codeRevenue.reduce((sum, transaction) => 
+    const totalRevenue = codeRevenue.reduce((sum: number, transaction: any) =>
       sum + parseFloat(transaction.amountUsd.toString()), 0
     );
 
@@ -193,12 +193,12 @@ export async function GET(req: NextRequest) {
           totalRevenue: totalRevenue.toFixed(2),
         },
         timeline,
-        statusBreakdown: statusBreakdown.map(item => ({
+        statusBreakdown: statusBreakdown.map((item: any) => ({
           status: item.status,
           count: item._count.id,
         })),
         geographicDistribution: mockGeoData,
-        recentActivity: recentActivity.map(activity => ({
+        recentActivity: recentActivity.map((activity: any) => ({
           id: activity.id,
           code: activity.unlockCode.code,
           releaseTitle: activity.unlockCode.release.title,
@@ -209,7 +209,7 @@ export async function GET(req: NextRequest) {
           success: activity.success,
           ipAddress: activity.ipAddress,
         })),
-        revenue: codeRevenue.map(transaction => ({
+        revenue: codeRevenue.map((transaction: any) => ({
           amount: parseFloat(transaction.amountUsd.toString()),
           date: transaction.createdAt,
           batchId: transaction.batchId,

@@ -63,7 +63,7 @@ export async function GET(
     const artistName = [release.creator.firstName, release.creator.lastName]
       .filter(Boolean)
       .join(' ') || release.creator.username || 'Unknown Artist';
-    const codes = unlockCodes.map(uc => uc.code);
+    const codes = unlockCodes.map((uc: any) => uc.code);
 
     switch (format) {
       case 'csv': {

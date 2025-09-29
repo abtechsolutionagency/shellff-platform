@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Start transaction to redeem the code
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // Mark the unlock code as used
       await tx.unlockCode.update({
         where: { id: unlockCode.id },

@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate total refund amount
-    const totalRefund = codes.reduce((sum, code) => {
+    const totalRefund = codes.reduce((sum: number, code: any) => {
       return sum + (code.costPerCode ? Number(code.costPerCode) : 0);
     }, 0);
 
@@ -50,10 +50,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Start a transaction to handle the refund
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: any) => {
       // Mark codes as invalid
       await tx.unlockCode.updateMany({
-        where: { id: { in: codes.map(c => c.id) } },
+        where: { id: { in: codes.map((c: any) => c.id) } },
         data: { status: 'invalid' }
       });
 
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
           description: `Refund for ${codes.length} unused unlock codes. Reason: ${reason}`,
           reference: `refund-${Date.now()}`,
           metadata: {
-            refundedCodeIds: codes.map(c => c.id),
+            refundedCodeIds: codes.map((c: any) => c.id),
             reason: reason,
             adminAction: true
           }

@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
 
     // Get detailed artist information for top artists
     const artistIds = await Promise.all(
-      topArtists.slice(0, 10).map(async (item) => {
+      topArtists.slice(0, 10).map(async (item: any) => {
         const track = await prisma.track.findUnique({
           where: { id: item.trackId },
           include: { artist: true }
@@ -158,8 +158,8 @@ export async function GET(request: NextRequest) {
     );
 
     // Remove duplicates and consolidate artist play counts
-    const artistPlayCounts = new Map();
-    artistIds.forEach(({ artist, playCount }) => {
+    const artistPlayCounts = new Map<string, any>();
+    artistIds.forEach(({ artist, playCount }: any) => {
       if (artist) {
         const existing = artistPlayCounts.get(artist.id) || { ...artist, totalPlays: 0 };
         existing.totalPlays += playCount;
@@ -168,7 +168,7 @@ export async function GET(request: NextRequest) {
     });
 
     const topArtistsFormatted = Array.from(artistPlayCounts.values())
-      .sort((a, b) => b.totalPlays - a.totalPlays)
+      .sort((a: any, b: any) => b.totalPlays - a.totalPlays)
       .slice(0, 10);
 
     const stats = {
@@ -180,13 +180,13 @@ export async function GET(request: NextRequest) {
           ? Math.round((totalListeningTime._sum.duration || 0) / totalPlayEvents / 60) 
           : 0
       },
-      topArtists: topArtistsFormatted.map(artist => ({
+      topArtists: topArtistsFormatted.map((artist: any) => ({
         id: artist.id,
         name: artist.name,
         avatar: artist.avatar,
         playCount: artist.totalPlays
       })),
-      topTracks: topTracks.map(entry => ({
+      topTracks: topTracks.map((entry: any) => ({
         id: entry.track.id,
         title: entry.track.title,
         artist: entry.track.artist.name,

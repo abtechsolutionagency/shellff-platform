@@ -91,18 +91,18 @@ export class NetworkHandlers {
       
       await prisma.$disconnect();
       
-      return dbNetworks.map(network => ({
+      return dbNetworks.map((network: any) => ({
         ...this.NETWORK_CONFIGS[network.networkName],
         isEnabled: network.isEnabled,
         adminWalletAddress: network.adminWalletAddress
-      })).filter(config => config);
+      })).filter((config: NetworkConfig | undefined): config is NetworkConfig => Boolean(config));
       
     } catch (error) {
       console.error('Error fetching network configurations:', error);
       // Return default enabled networks for demo
-      return Object.values(this.NETWORK_CONFIGS).filter(config => 
+      return Object.values(this.NETWORK_CONFIGS).filter((config: NetworkConfig) =>
         ['TRC20', 'BEP20'].includes(config.name)
-      ).map(config => ({ ...config, isEnabled: true }));
+      ).map((config: NetworkConfig) => ({ ...config, isEnabled: true }));
     }
   }
 

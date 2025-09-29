@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
       take: limit,
     });
 
-    const formattedCodes = codes.map(code => ({
+    const formattedCodes = codes.map((code: any) => ({
       id: code.id,
       code: code.code,
       status: code.status,
@@ -218,7 +218,7 @@ export async function POST(req: NextRequest) {
 
     // Convert to CSV format
     const csvHeader = 'Code,Release,Status,Redeemer,Redeemed At,Created At,Cost Per Code,Batch ID\n';
-    const csvRows = codes.map(code => {
+    const csvRows = codes.map((code: any) => {
       const redeemer = code.redeemer ? 
         `${code.redeemer.firstName || ''} ${code.redeemer.lastName || ''}`.trim() || code.redeemer.username 
         : '';
@@ -232,7 +232,7 @@ export async function POST(req: NextRequest) {
         code.createdAt.toISOString(),
         code.costPerCode ? code.costPerCode.toString() : '',
         code.batchId || '',
-      ].map(field => `"${field}"`).join(',');
+      ].map((field: string | number) => `"${field}"`).join(',');
     }).join('\n');
 
     const csvContent = csvHeader + csvRows;

@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Format the results (hide email for privacy unless exact match)
-    const formattedUsers = users.map((user) => ({
+    const formattedUsers = users.map((user: any) => ({
       id: user.id,
       name: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username,
       username: user.username,

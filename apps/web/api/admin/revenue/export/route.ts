@@ -82,12 +82,12 @@ export async function GET(request: NextRequest) {
 
       const csvRows = [
         headers.join(','), // Header row
-        ...transactions.map(tx => {
+        ...transactions.map((tx: any) => {
           const creatorName = tx.creator?.firstName && tx.creator?.lastName 
             ? `${tx.creator.firstName} ${tx.creator.lastName}`
             : tx.creator?.username || 'Unknown';
 
-          const redeemedCodes = tx.unlockCodes.filter(code => code.status === 'redeemed').length;
+          const redeemedCodes = tx.unlockCodes.filter((code: any) => code.status === 'redeemed').length;
 
           return [
             `"${tx.id}"`,

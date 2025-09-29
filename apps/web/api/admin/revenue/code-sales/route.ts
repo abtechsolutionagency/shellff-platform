@@ -74,8 +74,8 @@ export async function GET(request: NextRequest) {
       _count: true
     });
 
-    const totalPaymentAmount = paymentMethods.reduce((sum, method) => sum + Number(method._sum.amountUsd || 0), 0);
-    const paymentMethodBreakdown = paymentMethods.map((method, index) => {
+    const totalPaymentAmount = paymentMethods.reduce((sum: number, method: any) => sum + Number(method._sum.amountUsd || 0), 0);
+    const paymentMethodBreakdown = paymentMethods.map((method: any, index: number) => {
       const amount = Number(method._sum.amountUsd || 0);
       return {
         method: method.paymentMethod === 'wallet' ? 'Wallet' : 'Crypto',
@@ -98,8 +98,8 @@ export async function GET(request: NextRequest) {
     });
 
     const formattedNetworkBreakdown = networkBreakdown
-      .filter(network => network.networkType)
-      .map((network, index) => ({
+      .filter((network: any) => network.networkType)
+      .map((network: any, index: number) => ({
         network: network.networkType || 'Unknown',
         amount: Number(network._sum.amountUsd || 0),
         transactions: network._count,
@@ -134,9 +134,9 @@ export async function GET(request: NextRequest) {
     });
 
     const formattedCreatorRevenue = creatorRevenue
-      .map(creator => {
+      .map((creator: any) => {
         const transactions = creator.codePaymentTransactions;
-        const totalSpent = transactions.reduce((sum, tx) => sum + Number(tx.amountUsd), 0);
+        const totalSpent = transactions.reduce((sum: number, tx: any) => sum + Number(tx.amountUsd), 0);
         
         return {
           creatorId: creator.userId,
@@ -148,8 +148,8 @@ export async function GET(request: NextRequest) {
           averageOrderValue: transactions.length > 0 ? totalSpent / transactions.length : 0
         };
       })
-      .filter(creator => creator.totalSpent > 0)
-      .sort((a, b) => b.totalSpent - a.totalSpent);
+      .filter((creator: any) => creator.totalSpent > 0)
+      .sort((a: any, b: any) => b.totalSpent - a.totalSpent);
 
     // Calculate revenue growth
     const previousPeriodStart = new Date(startDate.getTime() - (now.getTime() - startDate.getTime()));

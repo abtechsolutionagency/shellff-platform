@@ -127,9 +127,9 @@ export async function POST(request: NextRequest) {
 
     // If qualified and earning rewards, update wallet and daily stats
     if (isQualified && rewardAmount > 0) {
-      await prisma.$transaction(async (prisma) => {
+      await prisma.$transaction(async (tx: any) => {
         // Get or create S2E wallet
-        let wallet = await prisma.wallet.findFirst({
+        let wallet = await tx.wallet.findFirst({
           where: {
             userId: (session.user as any).id,
             type: 'EARNINGS',
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
         });
 
         if (!wallet) {
-          wallet = await prisma.wallet.create({
+          wallet = await tx.wallet.create({
             data: {
               userId: (session.user as any).id,
               type: 'EARNINGS',
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Add reward to wallet
-        await prisma.wallet.update({
+        await tx.wallet.update({
           where: { id: wallet.id },
           data: {
             balance: {
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
         });
 
         // Record transaction
-        await prisma.transaction.create({
+        await tx.transaction.create({
           data: {
             walletId: wallet.id,
             type: 'EARNING',
@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
 
         // Update daily stats
         const today = new Date().toISOString().split('T')[0];
-        await prisma.dailyS2EStats.upsert({
+        await tx.dailyS2EStats.upsert({
           where: {
             userId_date: {
               userId: (session.user as any).id,

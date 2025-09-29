@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate royalty splits
-    const totalRoyalty = royaltySplits.reduce((sum, split) => sum + split.percentage, 0);
+    const totalRoyalty = royaltySplits.reduce((sum: number, split: any) => sum + split.percentage, 0);
     if (royaltySplits.length > 0 && Math.abs(totalRoyalty - 100) > 0.01) {
       return NextResponse.json(
         { error: 'Royalty splits must total 100%' },
@@ -116,9 +116,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Begin transaction
-    const result = await prisma.$transaction(async (prisma) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // Create release
-      const release = await prisma.release.create({
+      const release = await tx.release.create({
         data: {
           title: validatedData.title,
           description: validatedData.description,
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Deduct publishing fee from wallet
-      const feeTransaction = await prisma.transaction.create({
+      const feeTransaction = await tx.transaction.create({
         data: {
           walletId: wallet.id,
           type: 'FEE',
@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Update wallet balance
-      await prisma.wallet.update({
+      await tx.wallet.update({
         where: { id: wallet.id },
         data: {
           balance: {
@@ -171,17 +171,17 @@ export async function POST(request: NextRequest) {
       });
 
       // Store transaction ID in release
-      await prisma.release.update({
+      await tx.release.update({
         where: { id: release.id },
         data: { publishingFeeTxId: feeTransaction.id },
       });
 
       // Create tracks
       let totalDuration = 0;
-      const createdTracks = [];
+      const createdTracks: any[] = [];
 
-      for (const trackData of tracks) {
-        const track = await prisma.releaseTrack.create({
+      for (const trackData of tracks as any[]) {
+        const track = await tx.releaseTrack.create({
           data: {
             releaseId: release.id,
             title: trackData.title,
@@ -197,14 +197,14 @@ export async function POST(request: NextRequest) {
         totalDuration += track.duration;
 
         // Create track contributors
-        for (const contributor of trackData.contributors) {
+        for (const contributor of (trackData.contributors as any[])) {
           // Find contributor by sciId
-          const contributorUser = await prisma.user.findUnique({
+          const contributorUser = await tx.user.findUnique({
             where: { sciId: contributor.sciId },
           });
 
           if (contributorUser) {
-            await prisma.trackContributor.create({
+            await tx.trackContributor.create({
               data: {
                 releaseTrackId: track.id,
                 contributorId: contributorUser.id,
@@ -219,14 +219,14 @@ export async function POST(request: NextRequest) {
       }
 
       // Update release total duration
-      await prisma.release.update({
+      await tx.release.update({
         where: { id: release.id },
         data: { totalDuration },
       });
 
       // Create royalty splits
-      for (const split of royaltySplits) {
-        await prisma.royaltySplit.create({
+      for (const split of royaltySplits as any[]) {
+        await tx.royaltySplit.create({
           data: {
             releaseId: release.id,
             userId: split.userId,
