@@ -7,7 +7,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "node ./scripts/run-vitest.mjs run",
     "format": "prettier --check ."
   },
   "prisma": {

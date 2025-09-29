@@ -10,6 +10,7 @@
     "paths": {
       "@/*": ["./*"]
     },
+    "typeRoots": ["./types", "./node_modules/@types", "../../node_modules/@types"],
     "types": ["node", "vitest/globals", "vitest/importMeta"]
   },
   "include": [
