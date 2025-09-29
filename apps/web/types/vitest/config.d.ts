@@ -1,4 +1,5 @@
 /// <reference path="./index.d.ts" />
+
 declare module 'vitest/config' {
   interface TestConfig {
     include?: readonly string[]
@@ -11,6 +12,7 @@ declare module 'vitest/config' {
     reporters?: readonly (string | [string, Record<string, unknown>])[]
     [key: string]: unknown
   }
+
   interface InlineConfig {
     root?: string
     base?: string
@@ -22,15 +24,20 @@ declare module 'vitest/config' {
     test?: TestConfig
     [key: string]: unknown
   }
+
   interface ConfigEnv {
     readonly command: 'build' | 'serve' | 'test' | string
     readonly mode: string
   }
+
   type UserConfigExport =
     | InlineConfig
     | Promise<InlineConfig>
     | ((env: ConfigEnv) => InlineConfig | Promise<InlineConfig>)
+
   export type { ConfigEnv, InlineConfig, TestConfig, UserConfigExport }
+
   export function defineConfig<T extends UserConfigExport>(config: T): T
 }
+
 export {}

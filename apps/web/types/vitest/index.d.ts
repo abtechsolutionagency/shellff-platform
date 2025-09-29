@@ -1,5 +1,6 @@
 declare namespace Vitest {
   type Awaitable<T> = T | Promise<T>
+
   interface TestResult {
     readonly id?: string
     readonly name?: string
@@ -7,6 +8,7 @@ declare namespace Vitest {
     readonly errors?: readonly unknown[]
     readonly duration?: number
   }
+
   interface TestContext {
     readonly meta?: Record<string, unknown>
     readonly expect: ExpectStatic
@@ -17,14 +19,17 @@ declare namespace Vitest {
     fail(reason?: string): void
     [key: string]: unknown
   }
+
   type TestImplementation<TContext extends TestContext = TestContext> = (
     context: TContext,
   ) => Awaitable<void>
+
   interface HookImplementation<TContext extends TestContext = TestContext> {
     (implementation: TestImplementation<TContext>, timeout?: number): void
     skip?(reason?: string): void
     retry?(retries: number): void
   }
+
   interface SuiteImplementation {
     (name: string, handler: () => Awaitable<void> | void, timeout?: number): void
     skip(name: string, handler: () => Awaitable<void> | void, timeout?: number): void
@@ -35,6 +40,7 @@ declare namespace Vitest {
       cases: T,
     ): (name: string, handler: (...args: T extends ReadonlyArray<ReadonlyArray<infer U>> ? U[] : T[number][]) => Awaitable<void> | void, timeout?: number) => void
   }
+
   interface TestAPI<TContext extends TestContext = TestContext> {
     (name: string, implementation: TestImplementation<TContext>, timeout?: number): void
     skip(name: string, implementation: TestImplementation<TContext>, timeout?: number): void
@@ -58,16 +64,19 @@ declare namespace Vitest {
       | TestAPI<TContext>
       | ((name: string, implementation: TestImplementation<TContext>, timeout?: number) => void)
   }
+
   interface MatcherResult {
     pass: boolean
     message(): string
   }
+
   interface Matchers<T> {
     readonly not: Matchers<T>
     readonly resolves: Matchers<Awaited<T>>
     readonly rejects: Matchers<unknown>
     [assertion: string]: (...args: any[]) => Awaitable<void> | MatcherResult | void
   }
+
   interface ExpectStatic {
     <T>(actual: T): Matchers<T>
     <T>(actual: Awaitable<T>): Matchers<Awaited<T>>
@@ -78,7 +87,9 @@ declare namespace Vitest {
     getState(): Record<string, unknown>
     setState(state: Record<string, unknown>): void
   }
+
   type AnyFunction = (...args: any[]) => any
+
   interface SpyInstance<Args extends any[] = any[], Return = any> {
     get mock(): {
       calls: Args[]
@@ -94,6 +105,7 @@ declare namespace Vitest {
     reset(): void
     clear(): void
   }
+
   interface VitestMocker {
     fn<T extends AnyFunction = AnyFunction>(implementation?: T): SpyInstance<Parameters<T>, ReturnType<T>>
     spyOn<T extends object, K extends keyof T>(object: T, method: K): T[K] extends AnyFunction
@@ -107,6 +119,7 @@ declare namespace Vitest {
     restoreAllMocks(): void
     clearAllMocks(): void
   }
+
   interface VitestGlobal {
     readonly config: Record<string, unknown>
     readonly environment: string
@@ -116,6 +129,7 @@ declare namespace Vitest {
     readonly test: TestAPI
   }
 }
+
 declare module 'vitest' {
   export type Awaitable<T> = Vitest.Awaitable<T>
   export type TestResult = Vitest.TestResult
@@ -130,6 +144,7 @@ declare module 'vitest' {
   export type SpyInstance<Args extends any[] = any[], Return = any> = Vitest.SpyInstance<Args, Return>
   export type VitestMocker = Vitest.VitestMocker
   export type VitestGlobal = Vitest.VitestGlobal
+
   export const expect: ExpectStatic
   export const vi: VitestMocker
   export const vitest: VitestGlobal
@@ -144,4 +159,5 @@ declare module 'vitest' {
   export function onTestFailed(handler: (result: TestResult) => Vitest.Awaitable<void>): void
   export function onTestFinished(handler: (result: TestResult) => Vitest.Awaitable<void>): void
 }
+
 export {}

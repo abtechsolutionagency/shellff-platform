@@ -1,7 +1,9 @@
 /// <reference path="./index.d.ts" />
+
 declare module 'vitest/globals' {
   export * from 'vitest'
 }
+
 declare global {
   const suite: import('vitest').SuiteImplementation
   const describe: import('vitest').SuiteImplementation
@@ -17,4 +19,5 @@ declare global {
   const onTestFailed: (handler: (result: import('vitest').TestResult) => import('vitest').Awaitable<void>) => void
   const onTestFinished: (handler: (result: import('vitest').TestResult) => import('vitest').Awaitable<void>) => void
 }
+
 export {}

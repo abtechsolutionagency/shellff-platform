@@ -1,0 +1,11 @@
+aws_region          = "us-east-1"
+create_vpc          = true
+create_database     = false
+create_cache        = false
+create_storage      = true
+create_observability = true
+create_app          = false
+
+public_subnet_cidrs  = ["10.40.0.0/24", "10.40.1.0/24"]
+private_subnet_cidrs = ["10.40.10.0/24", "10.40.11.0/24"]
+availability_zones   = ["us-east-1a", "us-east-1b"]

@@ -1,5 +1,5 @@
 ﻿#!/bin/bash
 set -euo pipefail
 
-pnpm --filter @shellff/web prisma migrate deploy
-pnpm --filter @shellff/web prisma db seed
+pnpm --filter @shellff/api db:migrate
+pnpm --filter @shellff/api db:seed

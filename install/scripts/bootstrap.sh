@@ -1,5 +1,8 @@
-﻿#!/bin/bash
+#!/bin/bash
 set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+REPO_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
 
 echo "🛠️  Shellff bootstrap starting..."
 
@@ -13,8 +16,8 @@ if [[ $NODE_VERSION != v20* ]]; then
   echo "⚠️  Node 20.x is required. Detected $NODE_VERSION"
 fi
 
-if [[ ! -f ../.env ]]; then
-  cp ../install/.env.example ../.env
+if [[ ! -f "$REPO_ROOT/.env" ]]; then
+  cp "$REPO_ROOT/install/.env.example" "$REPO_ROOT/.env"
   echo "Created root .env from template."
 fi
 

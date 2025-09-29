@@ -1,0 +1,120 @@
+// Prisma schema for Shellff Slice 0 foundation
+// Defines core identity, roles, audit logging, and feature flag structures.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleType {
+  LISTENER
+  CREATOR
+  ADMIN
+  MODERATOR
+}
+
+enum FeatureFlagRolloutType {
+  STATIC
+  PERCENTAGE
+  TARGETED
+}
+
+enum FeatureFlagEnvironment {
+  LOCAL
+  STAGING
+  PRODUCTION
+}
+
+model User {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  phone       String?   @unique
+  passwordHash String
+  displayName String
+  primaryRole RoleType  @default(LISTENER)
+  status      String    @default("active")
+  creatorProfile Creator?
+  roles       UserRole[]
+  auditLogs   AuditLog[] @relation("AuditActor")
+  featureFlagOverrides FeatureFlagOverride[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Role {
+  id        Int       @id @default(autoincrement())
+  name      RoleType  @unique
+  users     UserRole[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model UserRole {
+  userId    String
+  roleId    Int
+  assignedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model Creator {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  creatorCode String   @unique
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  actorUserId  String?
+  actorType    String
+  event        String
+  target       String?
+  metadata     Json?
+  requestId    String?
+  createdAt    DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId])
+  @@index([event])
+  @@index([createdAt])
+}
+
+model FeatureFlag {
+  id          String                   @id @default(uuid())
+  key         String                   @unique
+  description String?
+  enabled     Boolean                  @default(false)
+  rolloutType FeatureFlagRolloutType   @default(STATIC)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  overrides   FeatureFlagOverride[]
+}
+
+model FeatureFlagOverride {
+  id          String                  @id @default(uuid())
+  flagId      String
+  userId      String?
+  environment FeatureFlagEnvironment  @default(LOCAL)
+  value       Boolean                 @default(false)
+  notes       String?
+  createdAt   DateTime                @default(now())
+
+  flag FeatureFlag @relation(fields: [flagId], references: [id], onDelete: Cascade)
+  user User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([flagId])
+  @@index([userId])
+  @@unique([flagId, environment, userId])
+}

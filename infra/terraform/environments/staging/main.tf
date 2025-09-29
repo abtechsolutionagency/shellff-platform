@@ -1,49 +1,59 @@
-﻿terraform {
-  required_version = ">= 1.7.0"
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~= 5.0"
-    }
-  }
-}
-
-provider "aws" {
-  region = var.aws_region
+locals {
+  tags = merge(var.tags, {
+    ManagedBy = "Terraform"
+  })
 }
 
 module "network" {
-  source              = "../../modules/network"
-  vpc_cidr            = var.vpc_cidr
-  public_subnet_cidrs = var.public_subnets
-  private_subnet_cidrs = var.private_subnets
-  tags = var.tags
+  source = "../../modules/network"
+
+  create_vpc          = var.create_vpc
+  cidr_block          = "10.40.0.0/16"
+  public_subnet_cidrs = var.public_subnet_cidrs
+  private_subnet_cidrs = var.private_subnet_cidrs
+  availability_zones  = var.availability_zones
+  tags                = local.tags
 }
 
-variable "aws_region" {
-  type    = string
-  default = "us-west-2"
+module "database" {
+  source = "../../modules/database"
+
+  create_db               = var.create_database
+  subnet_ids              = module.network.private_subnet_ids
+  vpc_security_group_ids  = []
+  tags                    = local.tags
 }
 
-variable "vpc_cidr" {
-  type    = string
-  default = "10.10.0.0/16"
+module "cache" {
+  source = "../../modules/cache"
+
+  create_cache        = var.create_cache
+  subnet_ids          = module.network.private_subnet_ids
+  security_group_ids  = []
+  tags                = local.tags
 }
 
-variable "public_subnets" {
-  type    = list(string)
-  default = ["10.10.1.0/24", "10.10.2.0/24"]
+module "storage" {
+  source = "../../modules/storage"
+
+  create_bucket = var.create_storage
+  bucket_name   = "shellff-staging-media"
+  tags          = local.tags
 }
 
-variable "private_subnets" {
-  type    = list(string)
-  default = ["10.10.11.0/24", "10.10.12.0/24"]
+module "observability" {
+  source = "../../modules/observability"
+
+  create_observability = var.create_observability
+  log_group_names      = ["api", "web", "workers"]
+  tags                 = local.tags
 }
 
-variable "tags" {
-  type    = map(string)
-  default = {
-    project = "shellff"
-    env     = "staging"
-  }
+module "app" {
+  source = "../../modules/app"
+
+  create_app         = var.create_app
+  subnet_ids         = module.network.private_subnet_ids
+  security_group_ids = []
+  tags               = local.tags
 }
