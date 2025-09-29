@@ -6,6 +6,7 @@
 - Maintain a single pnpm-powered monorepo from Slice 0 that includes packages for the web PWA, NestJS backend, and React Native shells.
 - Each slice delivers the web/PWA and backend UX, APIs, data, tests, and ops. The React Native shells stay scaffolded until their dedicated implementation in **Slices 12–13**.
 - After completing a slice, immediately run lint and tests, resolve every failure, print the checkpoint log, and continue straight to the next slice without waiting for additional approval.
+- Confirm CI is green before declaring the slice finished; rerun and repair any failing checks so each slice ships only after tests prove it production-ready.
 - Push notifications land in **Slice 10**. Do not start them earlier even if other docs suggest otherwise.
 - Offline downloads are part of the MVP: scaffold the offline shell in Slice 0 and deliver the full download experience with the playback slice per the vertical plan.
 - Treat the `.tsx` components bundled in `shellff-ui-ux.zip` as canonical starting points: import them into the monorepo, refactor them into production-ready shared components with full accessibility, strict TypeScript, and automated tests, and build any referenced screens or flows even if you must create missing ones to maintain design fidelity.
@@ -20,6 +21,7 @@
 1. After finishing each slice (Slice N):
 - **Run all tests** (`pnpm test` or equivalent).
 - **Debug and fix all errors** until the tests pass.
+- **Verify continuous integration pipelines are green** before considering the slice complete.
 
 ## UI and UX integration
 - DeepAgent must use the Figma Make–generated screens and components stored in `shellff-ui-ux.zip` at repo root.
