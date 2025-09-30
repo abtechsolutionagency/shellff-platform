@@ -62,6 +62,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Enforce text-only repository
+        run: pnpm lint:binaries
+
       - name: Wait for database
         run: pnpm dlx wait-on tcp:localhost:5432
 

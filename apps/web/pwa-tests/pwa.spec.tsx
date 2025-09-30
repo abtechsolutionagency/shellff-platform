@@ -1,5 +1,9 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll, afterEach, vi } from 'vitest';
+import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 let useEffectImpl: ((fn: () => void) => void) | undefined;
 let useStateImpl: (<T>(initial: T) => [T, (next: T) => void]) | undefined;
@@ -41,11 +45,30 @@ vi.mock('next-auth/react', () => ({
   useSession: () => ({ data: null }),
 }));
 
+const specDir = dirname(fileURLToPath(import.meta.url));
+const repoRoot = join(specDir, '..', '..', '..');
+const expectedFixtures = [
+  join(repoRoot, 'fixtures', 'audio', 'sample.mp3'),
+  join(repoRoot, 'fixtures', 'audio', 'sample.wav'),
+  join(repoRoot, 'fixtures', 'audio', 'sample.flac'),
+  join(repoRoot, 'fixtures', 'images', 'cover.png'),
+  join(repoRoot, 'fixtures', 'images', 'cover.jpg'),
+  join(repoRoot, 'fixtures', 'images', 'barcode.svg'),
+];
+
 describe('PWA web experience flows', () => {
   let originalWindow: typeof window | undefined;
   let originalDocument: Document | undefined;
   let originalNavigator: Navigator | undefined;
   let eventListeners: Record<string, Array<(event: Event) => void>>;
+
+  beforeAll(() => {
+    execSync('pnpm generate:fixtures', { cwd: repoRoot, stdio: 'pipe' });
+    const missing = expectedFixtures.filter((fixturePath) => !existsSync(fixturePath));
+    if (missing.length > 0) {
+      throw new Error(`Missing generated fixtures: ${missing.join(', ')}`);
+    }
+  });
 
   beforeEach(() => {
     eventListeners = {};

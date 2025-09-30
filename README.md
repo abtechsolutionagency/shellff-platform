@@ -1,9 +1,10 @@
-﻿# Mandatory workflow: Binary asset handling
+# Mandatory workflow: Binary asset handling
 
 The `make_pr` tool cannot accept binary payloads, so every slice must keep the repository text-only while still providing deterministic media fixtures locally. Follow this workflow without exception:
 
-- **Check in source-of-truth generators, not binaries.** For each required asset (e.g., MP3/WAV/FLAC, svg, png, jpg samples, cover art, QR exports or any other binaries not listed) add a small script or fixture module that emits the file from base64/PCM literals during `pnpm prepare` or a dedicated `pnpm generate:fixtures` step. Keep the generated outputs in a git-ignored `fixtures/` folder so `make_pr` never sees binary blobs.
+- **Check in source-of-truth generators, not binaries.** For each required asset (e.g., MP3/WAV/FLAC samples, cover art, QR exports) add a small script or fixture module that emits the file from base64/PCM literals during `pnpm prepare` or a dedicated `pnpm generate:fixtures` step. Keep the generated outputs in a git-ignored `fixtures/` folder so `make_pr` never sees binary blobs.
 - **Wire generators into tests and build tooling.** Update the relevant Vitest/Playwright setup (and any PWA cache seeding hooks) to call the generator before suites run, ensuring offline/install/update tests still exercise the real payloads they expect.
+- **Document the workflow.** Add developer-doc notes that contributors must run the generator (or rely on an automated pre-test hook) after checkout, so everyone has the binaries locally even though they’re absent from commits.
 
 # Shellff Platform Monorepo
 
@@ -32,7 +33,7 @@ This repository now uses a pnpm-powered workspace to deliver the Shellff roadmap
 - pnpm --filter @shellff/web test:pwa – runs the PWA install/offline/update integration suite.
 
 ## Environment
-Refer to pps/web/.env.local.example and install/.env.example for required variables including database, cache, feature flags, and Solana endpoints.
+Refer to apps/web/.env.local.example and install/.env.example for required variables including database, cache, feature flags, and Solana endpoints.
 
 ## Next Steps
 - Finish “Unlock issues” remediation (code format, migrations, scanner implementation).

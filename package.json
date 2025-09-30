@@ -6,6 +6,8 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "lint:binaries": "node ./scripts/lint-binaries.mjs",
+    "generate:fixtures": "pnpm --filter @shellff/web generate:fixtures",
     "build": "turbo run build",
     "dev:web": "pnpm --filter @shellff/web dev",
     "dev:api": "pnpm --filter @shellff/api start:dev",
