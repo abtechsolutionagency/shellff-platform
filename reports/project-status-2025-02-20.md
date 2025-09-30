@@ -17,6 +17,46 @@
 - Restored install tooling with a committed environment template and cross-platform bootstrap and seed scripts that set up `.env`, verify prerequisites, and run Prisma migrations/seeds for contributors.【F:install/.env.example†L1-L11】【F:install/scripts/bootstrap.sh†L1-L30】【F:install/scripts/bootstrap.ps1†L1-L38】【F:install/scripts/seed.sh†L1-L5】【F:install/scripts/seed.ps1†L1-L5】
 - Reintroduced Docker Compose services for Postgres, Redis, MinIO, and Prometheus plus a matching Prometheus scrape config to support local Slice 0 development flows.【F:docker-compose.yml†L1-L51】【F:monitoring/prometheus.yml†L1-L7】
 - Rebuilt Terraform modules for network, database, cache, storage, observability, and app workloads, then wired a staging environment layer with opt-in toggles for each resource group.【F:infra/terraform/modules/network/main.tf†L1-L68】【F:infra/terraform/modules/database/main.tf†L1-L43】【F:infra/terraform/modules/cache/main.tf†L1-L39】【F:infra/terraform/modules/storage/main.tf†L1-L29】【F:infra/terraform/modules/observability/main.tf†L1-L9】【F:infra/terraform/modules/app/main.tf†L1-L58】【F:infra/terraform/environments/staging/main.tf†L1-L59】【F:infra/terraform/environments/staging/variables.tf†L1-L68】
+## Vertical Slice Review
+### Slice 1 — Auth & Sessions
+- **Shipped:** Backend scaffolding from Slice 0 covers JWT issuance, refresh/logout endpoints, audit logging, and seeded role data, providing foundations but no end-user auth UX or session storage.
+- **Gaps:** Deliver email/OTP registration and login flows, forgot-password reset pipeline, persistent session records, OTP rate limiting, and web PWA authentication screens with tests across the full journey.
+### Slice 2 — Profiles & Settings
+- **Shipped:** No profile UX or APIs beyond baseline user/role tables and audit logging; nothing is exposed to manage profile data.
+- **Gaps:** Implement profile read/update endpoints, avatar upload storage, password management UI, session manager, related Prisma models, and accompanying unit/e2e coverage.
+### Slice 3 — Catalog & Search
+- **Shipped:** Catalog data structures, search endpoints, and discovery interfaces have not been started; current code only seeds roles/flags.
+- **Gaps:** Build catalog ingestion, track/album schemas, search APIs with indexing, PWA discovery pages, and relevancy/pagination tests.
+### Slice 4 — Playback & Queue
+- **Shipped:** No playback services, players, queue logic, or offline download tooling exist yet.
+- **Gaps:** Implement streaming token service, queue APIs, PWA mini/full player UX, offline download manager, playback telemetry, and coverage for online/offline scenarios.
+### Slice 5 — Library
+- **Shipped:** Library features are absent; likes, playlists, history, and supporting schemas have not been created.
+- **Gaps:** Add Prisma models and APIs for likes/playlists/history, responsive library UI, and tests validating ordering, idempotency, and data retention.
+### Slice 6 — Wallet & Payments
+- **Shipped:** No wallet schemas, payment provider integrations, or funding flows are implemented.
+- **Gaps:** Introduce wallets/transactions schema, gateway integrations, deposit and reconciliation workflows, wallet dashboard UI, and anti-double-spend tests.
+### Slice 7 — Creator Upload & Royalty Engine
+- **Shipped:** Upload workflows, royalty calculations, and contributor management remain unimplemented beyond general audit infrastructure.
+- **Gaps:** Build upload wizard UX, media ingest pipeline, release metadata storage, royalty split enforcement, Stream-to-Earn toggles, and validations/tests for large file handling.
+### Slice 8 — Admin Console
+- **Shipped:** Aside from baseline feature-flag endpoints, no admin console UI or advanced admin APIs are present.
+- **Gaps:** Create admin dashboards for feature flags, role management, moderation reports, audit exports, plus backend permissions, caching, and traceability tests.
+### Slice 9 — Analytics
+- **Shipped:** Analytics ingestion, aggregation, and dashboards have not begun; telemetry module only exposes basic health checks.
+- **Gaps:** Implement event pipelines, storage schemas for analytics, dashboard UX, export endpoints, and analytics validation coverage.
+### Slice 10 — Notifications & Realtime
+- **Shipped:** There are no notification channels, websocket infrastructure, or push registration flows in place.
+- **Gaps:** Deliver notification services, device token storage, websocket transport, PWA/native notification UX, and tests for delivery/permission handling.
+### Slice 11 — DevOps, Moderation & Compliance
+- **Shipped:** CI/CD hardening and Terraform scaffolding exist from Slice 0, but dedicated deployment dashboards, moderation tooling, and compliance automation are absent.
+- **Gaps:** Build deploy dashboard, incident response tools, moderation/compliance APIs, GDPR/NDPR workflows, signed export mechanisms, and resilience test suites.
+### Slice 12 — Mobile iOS App
+- **Shipped:** React Native shells exist only as a plan; no mobile packages or parity features are implemented.
+- **Gaps:** Scaffold iOS React Native app with wallet, catalog, playback, barcode flows, notification integration, offline parity, and device-specific testing.
+### Slice 13 — Mobile Android App
+- **Shipped:** Android implementation has not started beyond monorepo planning; no native-specific code is committed.
+- **Gaps:** Build Android React Native parity with wallet/catalog/playback/barcode features, notifications, offline support, and platform validation.
 ## 2. Remaining Scope
 ### Feature Flags & Audit Experience
 - Introduce caching or memoisation for flag evaluation and provide pagination/filtering on audit listings; every evaluation hits Prisma and `/audit/logs` only supports a fixed `limit` query today.【F:apps/api/src/feature-flags/feature-flags.service.ts†L21-L40】【F:apps/api/src/audit/audit.controller.ts†L18-L22】
