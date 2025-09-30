@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ConfigModule } from '@nestjs/config';
 
 import { AuditModule } from './audit/audit.module';
@@ -16,12 +18,22 @@ import { PrismaModule } from './prisma/prisma.module';
       envFilePath: ['.env', '../install/.env', '../../install/.env'],
       validate: validateEnv,
     }),
+    ThrottlerModule.forRoot({
+      ttl: 60,
+      limit: 100,
+    }),
     PrismaModule,
     AuditModule,
     AuthModule,
     RolesModule,
     FeatureFlagsModule,
     TelemetryModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

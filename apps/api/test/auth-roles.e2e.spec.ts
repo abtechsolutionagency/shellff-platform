@@ -4,6 +4,7 @@ import './utils/test-env';
 import { AddressInfo } from 'node:net';
 
 import { INestApplication } from '@nestjs/common';
+import { ThrottlerStorageService } from '@nestjs/throttler';
 import { Test } from '@nestjs/testing';
 import { RoleType } from '@prisma/client';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -45,6 +46,7 @@ async function httpRequest(
 describe('Auth & Management e2e', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let throttlerStorage: ThrottlerStorageService;
   const prismaStub = createInMemoryPrisma();
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -56,6 +58,7 @@ describe('Auth & Management e2e', () => {
 
     app = moduleRef.createNestApplication();
     prisma = app.get(PrismaService);
+    throttlerStorage = app.get(ThrottlerStorageService);
     await app.init();
     const server = app.getHttpServer();
     await new Promise<void>((resolve) => server.listen(0, resolve));
@@ -63,6 +66,7 @@ describe('Auth & Management e2e', () => {
 
   beforeEach(async () => {
     resetInMemoryPrisma(prismaStub);
+    throttlerStorage.reset();
     prisma = app.get(PrismaService);
     await prisma.role.createMany({
       data: [
@@ -97,6 +101,40 @@ describe('Auth & Management e2e', () => {
 
     expect(tokens).toHaveLength(1);
     expect(tokens[0].tokenHash).not.toEqual(response.body.tokens.refreshToken);
+  });
+
+  it('enforces rate limits on repeated login attempts', async () => {
+    const password = 'Password123!';
+    await prisma.user.create({
+      data: {
+        email: 'throttle@example.com',
+        displayName: 'Throttle Target',
+        passwordHash: hashPassword(password),
+        primaryRole: RoleType.LISTENER,
+        roles: {
+          create: { role: { connect: { name: RoleType.LISTENER } } },
+        },
+      },
+    });
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const attemptResponse = await httpRequest(app, 'POST', '/auth/login', {
+        email: 'throttle@example.com',
+        password: 'WrongPassword!',
+      });
+      expect(attemptResponse.status, JSON.stringify(attemptResponse.body)).toBe(401);
+    }
+
+    const blocked = await httpRequest(app, 'POST', '/auth/login', {
+      email: 'throttle@example.com',
+      password: 'WrongPassword!',
+    });
+
+    expect(blocked.status, JSON.stringify(blocked.body)).toBe(429);
+    expect(blocked.body).toMatchObject({
+      statusCode: 429,
+      message: 'Too Many Requests',
+    });
   });
 
   it('rejects unauthenticated access to management endpoints', async () => {

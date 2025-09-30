@@ -56,6 +56,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@nestjs/throttler':
+        specifier: workspace:*
+        version: link:../../packages/nest-throttler
       '@nestjs/common':
         specifier: ^10.4.7
         version: 10.4.20(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -478,6 +481,7 @@ importers:
         version: 1.6.1(@types/node@20.6.2)(lightningcss@1.27.0)(terser@5.44.0)
 
   packages/config: {}
+  packages/nest-throttler: {}
 
 packages:
 

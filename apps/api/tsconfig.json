@@ -12,6 +12,7 @@
     "outDir": "dist",
     "baseUrl": "./",
     "paths": {
+      "@nestjs/throttler": ["../../packages/nest-throttler/index"],
       "*": ["./src/*"]
     },
     "types": ["node", "vitest/globals"]
