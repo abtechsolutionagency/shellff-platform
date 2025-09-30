@@ -60,7 +60,7 @@ jobs:
             ${{ runner.os }}-turbo-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        - run: pnpm install --no-frozen-lockfile
 
       - name: Wait for database
         run: pnpm dlx wait-on tcp:localhost:5432
