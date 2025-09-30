@@ -18,6 +18,8 @@ the foundational telemetry and feature flag tooling needed by later slices.
 | `GET` | `/api/health` | Lightweight health probe used by orchestrators. |
 | `GET` | `/api/telemetry/health` | Health probe scoped under the telemetry namespace. |
 | `GET` | `/api/telemetry/metrics` | Process metrics: uptime, load averages, and memory usage. |
+| `GET` | `/api/version` | Returns the running API package version. |
+| `GET` | `/api/status` | Aggregated service health and metrics payload for dashboards. |
 
 ## Seed data
 

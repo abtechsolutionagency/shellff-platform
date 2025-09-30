@@ -6,6 +6,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./test/setup-tests.ts'],
     include: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    exclude: ['pwa-tests/**'],
     passWithNoTests: true
   }
 });

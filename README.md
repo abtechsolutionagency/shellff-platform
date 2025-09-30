@@ -22,6 +22,7 @@ This repository now uses a pnpm-powered workspace to deliver the Shellff roadmap
 - pnpm dev:api – NestJS watch mode.
 - pnpm dev:mobile – Expo dev client.
 - pnpm lint / pnpm typecheck / pnpm test – run via Turborepo across packages.
+- pnpm --filter @shellff/web test:pwa – runs the PWA install/offline/update integration suite.
 
 ## Environment
 Refer to pps/web/.env.local.example and install/.env.example for required variables including database, cache, feature flags, and Solana endpoints.

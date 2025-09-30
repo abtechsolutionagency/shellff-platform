@@ -24,6 +24,22 @@ export class TelemetryService {
     };
   }
 
+  getVersion() {
+    return process.env.npm_package_version ?? '0.0.1';
+  }
+
+  async getStatus() {
+    const [health, metrics] = await Promise.all([
+      this.getHealth(),
+      this.getMetrics(),
+    ]);
+
+    return {
+      ...health,
+      metrics,
+    };
+  }
+
   async getMetrics() {
     const memory = process.memoryUsage();
 

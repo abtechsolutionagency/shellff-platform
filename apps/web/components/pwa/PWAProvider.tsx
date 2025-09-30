@@ -6,7 +6,12 @@ import { useEffect } from "react";
 export function PWAProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Register service worker
-    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+    const shouldRegisterServiceWorker =
+      'serviceWorker' in navigator &&
+      (process.env.NODE_ENV === 'production' ||
+        process.env.NEXT_PUBLIC_ENABLE_SW_TESTS === 'true');
+
+    if (shouldRegisterServiceWorker) {
       window.addEventListener('load', async () => {
         try {
           const registration = await navigator.serviceWorker.register('/sw.js', {

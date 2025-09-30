@@ -20,4 +20,14 @@ export class TelemetryController {
   getMetrics() {
     return this.telemetryService.getMetrics();
   }
+
+  @Get('version')
+  getVersion() {
+    return this.telemetryService.getVersion();
+  }
+
+  @Get('status')
+  getStatus() {
+    return this.telemetryService.getStatus();
+  }
 }
