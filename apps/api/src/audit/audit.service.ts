@@ -29,10 +29,28 @@ export class AuditService {
     });
   }
 
-  async latest(limit = 20) {
-    return this.prisma.auditLog.findMany({
-      take: limit,
-      orderBy: { createdAt: 'desc' },
+  async latest(limit = 20, cursor?: string) {
+    const logs = await this.prisma.auditLog.findMany({
+      take: limit + 1,
+      orderBy: [
+        { createdAt: 'desc' },
+        { id: 'desc' },
+      ],
+      ...(cursor
+        ? {
+            skip: 1,
+            cursor: { id: cursor },
+          }
+        : {}),
     });
+
+    let nextCursor: string | null = null;
+
+    if (logs.length > limit) {
+      const nextItem = logs.pop();
+      nextCursor = nextItem ? nextItem.id : null;
+    }
+
+    return { logs, nextCursor };
   }
 }

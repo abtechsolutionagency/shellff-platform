@@ -50,9 +50,45 @@ describe('FeatureFlagsService', () => {
     expect(result.source).toBe('user-override');
   });
 
+  it('memoises flag lookups between evaluations', async () => {
+    const prisma = createPrismaMock();
+    const audit = { recordEvent: vi.fn() } as unknown as AuditService;
+
+    prisma.featureFlag.findUnique = vi.fn().mockResolvedValue({
+      key: 'auth.signup',
+      enabled: true,
+      rolloutType: FeatureFlagRolloutType.STATIC,
+      description: 'signup',
+      overrides: [],
+    });
+
+    const service = new FeatureFlagsService(prisma, audit);
+    await service.evaluate('auth.signup', {});
+    await service.evaluate('auth.signup', {});
+
+    expect(prisma.featureFlag.findUnique).toHaveBeenCalledTimes(1);
+  });
+
   it('updates flag values and records audit', async () => {
     const prisma = createPrismaMock();
     const audit = { recordEvent: vi.fn() } as unknown as AuditService;
+
+    prisma.featureFlag.findUnique = vi
+      .fn()
+      .mockResolvedValueOnce({
+        key: 'auth.signup',
+        enabled: false,
+        rolloutType: FeatureFlagRolloutType.STATIC,
+        description: 'signup',
+        overrides: [],
+      })
+      .mockResolvedValueOnce({
+        key: 'auth.signup',
+        enabled: true,
+        rolloutType: FeatureFlagRolloutType.STATIC,
+        description: 'signup',
+        overrides: [],
+      });
 
     prisma.featureFlag.update = vi.fn().mockResolvedValue({
       key: 'auth.signup',
@@ -62,22 +98,48 @@ describe('FeatureFlagsService', () => {
     });
 
     const service = new FeatureFlagsService(prisma, audit);
+    await service.evaluate('auth.signup', {});
     await service.updateFlag('auth.signup', {
       enabled: true,
       actorType: 'admin',
     });
+    const result = await service.evaluate('auth.signup', {});
 
     expect(prisma.featureFlag.update).toHaveBeenCalled();
+    expect(prisma.featureFlag.findUnique).toHaveBeenCalledTimes(2);
     expect(audit.recordEvent).toHaveBeenCalledWith(
       expect.objectContaining({ event: 'feature-flags.update' }),
     );
+    expect(result.value).toBe(true);
   });
 
   it('creates overrides and logs audit', async () => {
     const prisma = createPrismaMock();
     const audit = { recordEvent: vi.fn() } as unknown as AuditService;
 
-    prisma.featureFlag.findUnique = vi.fn().mockResolvedValue({ id: 'flag-1', key: 'auth.signup' });
+    prisma.featureFlag.findUnique = vi
+      .fn()
+      .mockResolvedValueOnce({
+        key: 'auth.signup',
+        enabled: false,
+        rolloutType: FeatureFlagRolloutType.STATIC,
+        description: 'signup',
+        overrides: [],
+      })
+      .mockResolvedValueOnce({ id: 'flag-1', key: 'auth.signup' })
+      .mockResolvedValueOnce({
+        key: 'auth.signup',
+        enabled: false,
+        rolloutType: FeatureFlagRolloutType.STATIC,
+        description: 'signup',
+        overrides: [
+          {
+            environment: FeatureFlagEnvironment.LOCAL,
+            userId: null,
+            value: true,
+          },
+        ],
+      });
     prisma.featureFlagOverride.upsert = vi.fn().mockResolvedValue({
       environment: FeatureFlagEnvironment.LOCAL,
       userId: null,
@@ -85,15 +147,22 @@ describe('FeatureFlagsService', () => {
     });
 
     const service = new FeatureFlagsService(prisma, audit);
+    await service.evaluate('auth.signup', {});
     await service.upsertOverride('auth.signup', {
       value: true,
       notes: 'enable locally',
       actorType: 'admin',
     });
+    const result = await service.evaluate('auth.signup', {
+      environment: FeatureFlagEnvironment.LOCAL,
+    });
 
     expect(prisma.featureFlagOverride.upsert).toHaveBeenCalled();
+    expect(prisma.featureFlag.findUnique).toHaveBeenCalledTimes(3);
     expect(audit.recordEvent).toHaveBeenCalledWith(
       expect.objectContaining({ event: 'feature-flags.override' }),
     );
+    expect(result.value).toBe(true);
+    expect(result.source).toBe('environment-override');
   });
 });
