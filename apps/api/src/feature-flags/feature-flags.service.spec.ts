@@ -2,10 +2,12 @@ import {
   FeatureFlagEnvironment,
   FeatureFlagRolloutType,
 } from '@prisma/client';
-import { describe, expect, it, vi } from 'vitest';
+import { ConfigService } from '@nestjs/config';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
+import type { EnvConfig } from '../config/env.validation';
 
 import { FeatureFlagsService } from './feature-flags.service';
 
@@ -21,10 +23,34 @@ function createPrismaMock() {
   } as unknown as PrismaService;
 }
 
+const baseConfig: EnvConfig = {
+  NODE_ENV: 'test',
+  APP_PORT: 3000,
+  DATABASE_URL: 'postgres://localhost:5432/shellff',
+  REDIS_URL: 'redis://localhost:6379',
+  MINIO_ENDPOINT: 'http://localhost:9000',
+  MINIO_ACCESS_KEY: 'shellff',
+  MINIO_SECRET_KEY: 'shellffsecret',
+  FEATURE_FLAG_CACHE_TTL_SECONDS: 60,
+  JWT_ACCESS_TOKEN_SECRET: 'access',
+  JWT_ACCESS_TOKEN_TTL_SECONDS: 3600,
+  JWT_REFRESH_TOKEN_SECRET: 'refresh',
+  JWT_REFRESH_TOKEN_TTL_SECONDS: 86400,
+};
+
+function createConfigService(overrides: Partial<EnvConfig> = {}) {
+  return new ConfigService<EnvConfig, true>({ ...baseConfig, ...overrides });
+}
+
 describe('FeatureFlagsService', () => {
+  beforeEach(() => {
+    vi.useRealTimers();
+  });
+
   it('evaluates with user overrides first', async () => {
     const prisma = createPrismaMock();
     const audit = { recordEvent: vi.fn() } as unknown as AuditService;
+    const config = createConfigService();
 
     prisma.featureFlag.findUnique = vi.fn().mockResolvedValue({
       key: 'auth.signup',
@@ -40,7 +66,7 @@ describe('FeatureFlagsService', () => {
       ],
     });
 
-    const service = new FeatureFlagsService(prisma, audit);
+    const service = new FeatureFlagsService(prisma, audit, config);
     const result = await service.evaluate('auth.signup', {
       userId: 'user-1',
       environment: FeatureFlagEnvironment.LOCAL,
@@ -53,6 +79,7 @@ describe('FeatureFlagsService', () => {
   it('memoises flag lookups between evaluations', async () => {
     const prisma = createPrismaMock();
     const audit = { recordEvent: vi.fn() } as unknown as AuditService;
+    const config = createConfigService();
 
     prisma.featureFlag.findUnique = vi.fn().mockResolvedValue({
       key: 'auth.signup',
@@ -62,16 +89,41 @@ describe('FeatureFlagsService', () => {
       overrides: [],
     });
 
-    const service = new FeatureFlagsService(prisma, audit);
+    const service = new FeatureFlagsService(prisma, audit, config);
     await service.evaluate('auth.signup', {});
     await service.evaluate('auth.signup', {});
 
     expect(prisma.featureFlag.findUnique).toHaveBeenCalledTimes(1);
   });
 
+  it('expires cached flags after configured TTL', async () => {
+    vi.useFakeTimers();
+    const prisma = createPrismaMock();
+    const audit = { recordEvent: vi.fn() } as unknown as AuditService;
+    const config = createConfigService({ FEATURE_FLAG_CACHE_TTL_SECONDS: 1 });
+
+    const flag = {
+      key: 'auth.signup',
+      enabled: true,
+      rolloutType: FeatureFlagRolloutType.STATIC,
+      description: 'signup',
+      overrides: [],
+    };
+
+    prisma.featureFlag.findUnique = vi.fn().mockResolvedValue(flag);
+
+    const service = new FeatureFlagsService(prisma, audit, config);
+    await service.evaluate('auth.signup', {});
+    vi.advanceTimersByTime(1100);
+    await service.evaluate('auth.signup', {});
+
+    expect(prisma.featureFlag.findUnique).toHaveBeenCalledTimes(2);
+  });
+
   it('updates flag values and records audit', async () => {
     const prisma = createPrismaMock();
     const audit = { recordEvent: vi.fn() } as unknown as AuditService;
+    const config = createConfigService();
 
     prisma.featureFlag.findUnique = vi
       .fn()
@@ -97,7 +149,7 @@ describe('FeatureFlagsService', () => {
       description: 'signup',
     });
 
-    const service = new FeatureFlagsService(prisma, audit);
+    const service = new FeatureFlagsService(prisma, audit, config);
     await service.evaluate('auth.signup', {});
     await service.updateFlag('auth.signup', {
       enabled: true,
@@ -116,6 +168,7 @@ describe('FeatureFlagsService', () => {
   it('creates overrides and logs audit', async () => {
     const prisma = createPrismaMock();
     const audit = { recordEvent: vi.fn() } as unknown as AuditService;
+    const config = createConfigService();
 
     prisma.featureFlag.findUnique = vi
       .fn()
@@ -146,7 +199,7 @@ describe('FeatureFlagsService', () => {
       value: true,
     });
 
-    const service = new FeatureFlagsService(prisma, audit);
+    const service = new FeatureFlagsService(prisma, audit, config);
     await service.evaluate('auth.signup', {});
     await service.upsertOverride('auth.signup', {
       value: true,

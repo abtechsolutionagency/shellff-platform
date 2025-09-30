@@ -3,9 +3,11 @@ import {
   FeatureFlagEnvironment,
   FeatureFlagRolloutType,
 } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma/prisma.service';
+import type { EnvConfig } from '../config/env.validation';
 
 import { EvaluateFlagDto } from './dto/evaluate-flag.dto';
 import { UpdateFeatureFlagDto } from './dto/update-flag.dto';
@@ -29,12 +31,21 @@ type CachedFlag = {
 @Injectable()
 export class FeatureFlagsService {
   private readonly cache = new Map<string, CachedFlag>();
-  private readonly cacheTtlMs = 60_000;
+  private readonly inFlightFetches = new Map<string, Promise<CachedFlag['flag']>>();
+  private readonly cacheTtlMs: number;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
-  ) {}
+    private readonly configService?: ConfigService<EnvConfig, true>,
+  ) {
+    const ttlSeconds = this.configService?.get<number>(
+      'FEATURE_FLAG_CACHE_TTL_SECONDS',
+    );
+    const resolvedSeconds =
+      typeof ttlSeconds === 'number' && ttlSeconds > 0 ? ttlSeconds : 60;
+    this.cacheTtlMs = resolvedSeconds * 1000;
+  }
 
   async evaluate(key: string, query: EvaluateFlagDto) {
     const flag = await this.getFlagWithCaching(key);
@@ -133,25 +144,44 @@ export class FeatureFlagsService {
       return cached.flag;
     }
 
-    const flag = await this.prisma.featureFlag.findUnique({
-      where: { key },
-      include: { overrides: true },
-    });
-
-    if (!flag) {
-      throw new NotFoundException('Feature flag not found');
+    if (cached && cached.expiresAt <= now) {
+      this.cache.delete(key);
     }
 
-    this.cache.set(key, {
-      flag,
-      expiresAt: now + this.cacheTtlMs,
-    });
+    const existingFetch = this.inFlightFetches.get(key);
+    if (existingFetch) {
+      return existingFetch;
+    }
 
-    return flag;
+    const fetchPromise = this.prisma.featureFlag
+      .findUnique({
+        where: { key },
+        include: { overrides: true },
+      })
+      .then((flag) => {
+        if (!flag) {
+          throw new NotFoundException('Feature flag not found');
+        }
+
+        const refreshedEntry: CachedFlag = {
+          flag,
+          expiresAt: Date.now() + this.cacheTtlMs,
+        };
+
+        this.cache.set(key, refreshedEntry);
+        return refreshedEntry.flag;
+      })
+      .finally(() => {
+        this.inFlightFetches.delete(key);
+      });
+
+    this.inFlightFetches.set(key, fetchPromise);
+    return fetchPromise;
   }
 
   private invalidateCacheEntry(key: string) {
     this.cache.delete(key);
+    this.inFlightFetches.delete(key);
   }
 
   private computeFlagValue(
