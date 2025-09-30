@@ -1,4 +1,7 @@
-import { FeatureFlagEnvironment, FeatureFlagRolloutType } from '@prisma/client';
+import {
+  FeatureFlagEnvironment,
+  FeatureFlagRolloutType,
+} from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AuditService } from '../audit/audit.service';

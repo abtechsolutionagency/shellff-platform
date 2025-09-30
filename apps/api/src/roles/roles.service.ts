@@ -26,10 +26,32 @@ export class RolesService {
     });
 
     if (!user) {
+      await this.auditService.recordEvent({
+        actorUserId: dto.actorUserId ?? null,
+        actorType: dto.actorType,
+        event: 'roles.grant.denied',
+        target: `${dto.userId}:${dto.role}`,
+        metadata: {
+          reason: 'user_not_found',
+          userId: dto.userId,
+          role: dto.role,
+        },
+      });
       throw new NotFoundException('User not found');
     }
 
     if (user.roles.some((assignment) => assignment.role.name === dto.role)) {
+      await this.auditService.recordEvent({
+        actorUserId: dto.actorUserId ?? null,
+        actorType: dto.actorType,
+        event: 'roles.grant.denied',
+        target: `${user.id}:${dto.role}`,
+        metadata: {
+          reason: 'already_assigned',
+          userId: user.id,
+          role: dto.role,
+        },
+      });
       return {
         userId: user.id,
         roles: user.roles.map((assignment) => assignment.role.name),
@@ -41,6 +63,17 @@ export class RolesService {
     });
 
     if (!role) {
+      await this.auditService.recordEvent({
+        actorUserId: dto.actorUserId ?? null,
+        actorType: dto.actorType,
+        event: 'roles.grant.denied',
+        target: `${user.id}:${dto.role}`,
+        metadata: {
+          reason: 'role_not_seeded',
+          userId: user.id,
+          role: dto.role,
+        },
+      });
       throw new ConflictException(`Role ${dto.role} has not been seeded`);
     }
 

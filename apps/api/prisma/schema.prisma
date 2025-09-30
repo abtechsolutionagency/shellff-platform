@@ -39,6 +39,7 @@ model User {
   status      String    @default("active")
   creatorProfile Creator?
   roles       UserRole[]
+  refreshTokens RefreshToken[]
   auditLogs   AuditLog[] @relation("AuditActor")
   featureFlagOverrides FeatureFlagOverride[]
   createdAt   DateTime  @default(now())
@@ -117,4 +118,25 @@ model FeatureFlagOverride {
   @@index([flagId])
   @@index([userId])
   @@unique([flagId, environment, userId])
+}
+
+model RefreshToken {
+  id               String   @id @default(uuid())
+  userId           String
+  tokenHash        String
+  issuedAt         DateTime @default(now())
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  replacedByTokenId String?
+  userAgent        String?
+  ipAddress        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacement   RefreshToken? @relation("RefreshTokenReplacement", fields: [replacedByTokenId], references: [id])
+  replacedTokens RefreshToken[] @relation("RefreshTokenReplacement")
+
+  @@index([userId])
+  @@index([tokenHash])
 }

@@ -1,7 +1,8 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
 
 import { AuditService } from './audit.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 class AuditQueryDto {
   @IsOptional()
@@ -11,6 +12,7 @@ class AuditQueryDto {
   limit?: number;
 }
 
+@UseGuards(JwtAuthGuard)
 @Controller('audit')
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}

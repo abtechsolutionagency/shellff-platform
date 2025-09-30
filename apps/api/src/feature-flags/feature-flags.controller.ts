@@ -1,10 +1,21 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 
 import { EvaluateFlagDto } from './dto/evaluate-flag.dto';
 import { UpdateFeatureFlagDto } from './dto/update-flag.dto';
 import { UpsertFlagOverrideDto } from './dto/upsert-override.dto';
 import { FeatureFlagsService } from './feature-flags.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @Controller('feature-flags')
 export class FeatureFlagsController {
   constructor(private readonly featureFlagsService: FeatureFlagsService) {}

@@ -11,4 +11,11 @@ export type AuthSession = {
     creatorId?: string | null;
     status: string;
   };
+  tokens: {
+    accessToken: string;
+    accessTokenExpiresAt: string;
+    refreshToken: string;
+    refreshTokenExpiresAt: string;
+    tokenType: 'Bearer';
+  };
 };

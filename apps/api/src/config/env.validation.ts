@@ -7,6 +7,10 @@ export type EnvConfig = {
   MINIO_ACCESS_KEY: string;
   MINIO_SECRET_KEY: string;
   FEATURE_FLAG_CACHE_TTL_SECONDS: number;
+  JWT_ACCESS_TOKEN_SECRET: string;
+  JWT_ACCESS_TOKEN_TTL_SECONDS: number;
+  JWT_REFRESH_TOKEN_SECRET: string;
+  JWT_REFRESH_TOKEN_TTL_SECONDS: number;
 };
 
 const NODE_ENVS = new Set(['development', 'test', 'production']);
@@ -54,6 +58,30 @@ export function validateEnv(config: Record<string, unknown>): EnvConfig {
   const MINIO_SECRET_KEY = asString(config.MINIO_SECRET_KEY) ?? 'shellffsecret';
   const FEATURE_FLAG_CACHE_TTL_SECONDS = asNumber(config.FEATURE_FLAG_CACHE_TTL_SECONDS) ?? 60;
 
+  const JWT_ACCESS_TOKEN_SECRET = asString(config.JWT_ACCESS_TOKEN_SECRET);
+  if (!JWT_ACCESS_TOKEN_SECRET) {
+    errors.push('JWT_ACCESS_TOKEN_SECRET is required');
+  }
+
+  const JWT_REFRESH_TOKEN_SECRET = asString(config.JWT_REFRESH_TOKEN_SECRET);
+  if (!JWT_REFRESH_TOKEN_SECRET) {
+    errors.push('JWT_REFRESH_TOKEN_SECRET is required');
+  }
+
+  const JWT_ACCESS_TOKEN_TTL_SECONDS = asNumber(
+    config.JWT_ACCESS_TOKEN_TTL_SECONDS,
+  ) ?? 900;
+  if (JWT_ACCESS_TOKEN_TTL_SECONDS <= 0) {
+    errors.push('JWT_ACCESS_TOKEN_TTL_SECONDS must be a positive integer');
+  }
+
+  const JWT_REFRESH_TOKEN_TTL_SECONDS = asNumber(
+    config.JWT_REFRESH_TOKEN_TTL_SECONDS,
+  ) ?? 60 * 60 * 24 * 7;
+  if (JWT_REFRESH_TOKEN_TTL_SECONDS <= 0) {
+    errors.push('JWT_REFRESH_TOKEN_TTL_SECONDS must be a positive integer');
+  }
+
   if (FEATURE_FLAG_CACHE_TTL_SECONDS <= 0) {
     errors.push('FEATURE_FLAG_CACHE_TTL_SECONDS must be a positive integer');
   }
@@ -71,5 +99,9 @@ export function validateEnv(config: Record<string, unknown>): EnvConfig {
     MINIO_ACCESS_KEY,
     MINIO_SECRET_KEY,
     FEATURE_FLAG_CACHE_TTL_SECONDS,
+    JWT_ACCESS_TOKEN_SECRET: JWT_ACCESS_TOKEN_SECRET!,
+    JWT_ACCESS_TOKEN_TTL_SECONDS,
+    JWT_REFRESH_TOKEN_SECRET: JWT_REFRESH_TOKEN_SECRET!,
+    JWT_REFRESH_TOKEN_TTL_SECONDS,
   };
 }
