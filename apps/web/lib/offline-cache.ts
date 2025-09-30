@@ -1,6 +1,27 @@
 
 // Offline cache management for audio tracks
 import { Track } from '@/contexts/MusicPlayerContext';
+import { trackAnalyticsEvent } from './analytics';
+
+interface DownloadBundleResponse {
+  bundle: {
+    id: string;
+    status: string;
+    releaseId: string;
+    requestedAt: string;
+    completedAt?: string;
+    expiresAt?: string;
+  };
+  assets: Array<{
+    id: string;
+    trackId: string;
+    format: string;
+    quality?: string;
+    sizeBytes?: number;
+    downloadUrl?: string;
+    status: string;
+  }>;
+}
 
 interface CachedTrack {
   id: string;
@@ -126,9 +147,21 @@ export class OfflineCache {
 
     try {
       // Download audio
-      const audioUrl = track.audioUrl || `/api/tracks/${track.id}/stream`;
-      const audioResponse = await fetch(audioUrl);
-      
+      trackAnalyticsEvent('offline.download.requested', {
+        trackId: track.id,
+        releaseId: track.albumId ?? track.albumTitle ?? null,
+      });
+
+      const { asset, bundle } = await this.requestDownloadAsset(track);
+
+      trackAnalyticsEvent('offline.download.started', {
+        trackId: track.id,
+        bundleId: bundle.id,
+        format: asset.format,
+      });
+
+      const audioResponse = await fetch(asset.downloadUrl);
+
       if (!audioResponse.ok) throw new Error('Failed to download audio');
 
       const audioBlob = await audioResponse.blob();
@@ -188,6 +221,12 @@ export class OfflineCache {
         this.notifyListeners();
       }, 2000);
 
+      trackAnalyticsEvent('offline.download.completed', {
+        trackId: track.id,
+        bundleId: bundle.id,
+        bytesStored: cachedTrack.size,
+      });
+
       return true;
     } catch (error) {
       console.error('Failed to download track:', error);
@@ -198,8 +237,35 @@ export class OfflineCache {
         error: error instanceof Error ? error.message : 'Download failed'
       });
       this.notifyListeners();
+      trackAnalyticsEvent('offline.download.failed', {
+        trackId: track.id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
       return false;
     }
+  }
+
+  private async requestDownloadAsset(track: Track) {
+    const response = await fetch('/api/downloads/bundles', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ trackIds: [track.id] }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to request download bundle');
+    }
+
+    const payload = (await response.json()) as DownloadBundleResponse;
+    const asset = payload.assets.find((item) => item.trackId === track.id && item.status === 'READY');
+
+    if (!asset || !asset.downloadUrl) {
+      throw new Error('Download asset not ready yet');
+    }
+
+    return { asset, bundle: payload.bundle };
   }
 
   // Remove cached track

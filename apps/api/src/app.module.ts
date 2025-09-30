@@ -4,6 +4,8 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ConfigModule } from '@nestjs/config';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { CatalogModule } from './catalog/catalog.module';
+import { DownloadsModule } from './downloads/downloads.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 import { RolesModule } from './roles/roles.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
@@ -23,6 +25,8 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     AuditModule,
     AuthModule,
+    CatalogModule,
+    DownloadsModule,
     RolesModule,
     FeatureFlagsModule,
     TelemetryModule,
