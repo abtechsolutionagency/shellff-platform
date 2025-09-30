@@ -8,6 +8,7 @@ type UserRecord = {
   id: string;
   email: string;
   phone: string | null;
+  publicId: string | null;
   passwordHash: string;
   displayName: string;
   primaryRole: RoleType;
@@ -130,6 +131,7 @@ export function createInMemoryPrisma(): PrismaService {
           id: data.id ?? randomUUID(),
           email: data.email.toLowerCase(),
           phone: data.phone ?? null,
+          publicId: data.publicId ?? null,
           passwordHash: data.passwordHash,
           displayName: data.displayName,
           primaryRole: data.primaryRole ?? RoleType.LISTENER,
@@ -187,6 +189,9 @@ export function createInMemoryPrisma(): PrismaService {
         }
         if (data.status !== undefined) {
           user.status = data.status;
+        }
+        if (data.publicId !== undefined) {
+          user.publicId = data.publicId;
         }
         user.updatedAt = now();
         return clone(includeUser(user, params?.include));

@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,10 +22,21 @@ export default function UnlockAlbumPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'code' | 'scan'>('code');
 
-  // Redirect if not authenticated
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.replace('/auth/login?callbackUrl=/unlock-album');
+    }
+  }, [router, status]);
+
   if (status === 'unauthenticated') {
-    router.push('/auth/signin?callbackUrl=/unlock-album');
-    return null;
+    return (
+      <div className="min-h-screen bg-[#121212] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">Redirecting to login…</p>
+        </div>
+      </div>
+    );
   }
 
   if (status === 'loading') {

@@ -1,0 +1,12 @@
+{
+  "name": "@shellff/config",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    "./eslint": "./eslint/index.mjs",
+    "./tsconfig": "./tsconfig/base.json",
+    "./tsconfig/base.json": "./tsconfig/base.json",
+    "./tsconfig.json": "./tsconfig.json"
+  }
+}

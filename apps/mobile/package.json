@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
+    "@shellff/config": "workspace:*",
     "@testing-library/react-native": "^12.4.5",
     "@types/react": "18.2.22",
     "@types/react-native": "0.73.0",

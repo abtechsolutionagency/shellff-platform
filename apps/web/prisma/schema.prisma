@@ -19,6 +19,7 @@ enum UserType {
 model User {
   id               String    @id @default(cuid())
   userId           String    @unique // User ID for all users
+  publicId         String?   @unique
   sciId            String?   @unique // Shellff Creator ID (only for creators)
   username         String    @unique
   email            String    @unique
