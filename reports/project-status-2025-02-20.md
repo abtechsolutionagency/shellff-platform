@@ -52,8 +52,8 @@
 - **Shipped:** CI/CD hardening and Terraform scaffolding exist from Slice 0, but dedicated deployment dashboards, moderation tooling, and compliance automation are absent.
 - **Gaps:** Build deploy dashboard, incident response tools, moderation/compliance APIs, GDPR/NDPR workflows, signed export mechanisms, and resilience test suites.
 ### Slice 12 — Mobile iOS App
-- **Shipped:** React Native shells exist only as a plan; no mobile packages or parity features are implemented.
-- **Gaps:** Scaffold iOS React Native app with wallet, catalog, playback, barcode flows, notification integration, offline parity, and device-specific testing.
+- **Shipped:** Expo-managed React Native scaffold and tooling live in `apps/mobile`, including the baseline package scripts and the starter `App.tsx`, giving us an on-device shell to expand.【F:apps/mobile/package.json†L1-L73】【F:apps/mobile/src/App.tsx†L1-L52】
+- **Gaps:** Layer the wallet, catalog, playback, and barcode experiences onto the scaffold, wire mobile auth, notifications, and offline sync to backend services, polish navigation/UX for iOS parity, and add native test coverage to validate feature completeness.
 ### Slice 13 — Mobile Android App
 - **Shipped:** Android implementation has not started beyond monorepo planning; no native-specific code is committed.
 - **Gaps:** Build Android React Native parity with wallet/catalog/playback/barcode features, notifications, offline support, and platform validation.
