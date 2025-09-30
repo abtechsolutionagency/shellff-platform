@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { ChangeEvent, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ArrowLeft, User, Edit2, Save, X } from "lucide-react";
 import Link from "next/link";
+import { updateProfile as updateProfileRequest, uploadAvatar as uploadAvatarRequest, removeAvatar as removeAvatarRequest } from "@/lib/profile-client";
 
 export default function AccountSettingsPage() {
-  const { data: session, status } = useSession() || {};
+  const { data: session, status, update } = useSession() || {};
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     firstName: (session?.user as any)?.firstName || '',
@@ -23,6 +24,16 @@ export default function AccountSettingsPage() {
     username: (session?.user as any)?.username || '',
     bio: (session?.user as any)?.bio || '',
   });
+  const [isSaving, setIsSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(
+    (session?.user as any)?.profilePicture || session?.user?.image || undefined,
+  );
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isRemovingAvatar, setIsRemovingAvatar] = useState(false);
+  const [avatarStatus, setAvatarStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   if (status === "loading") {
     return (
@@ -48,14 +59,43 @@ export default function AccountSettingsPage() {
     return (session?.user as any)?.firstName?.[0]?.toUpperCase() || 'U';
   };
 
-  const handleSave = () => {
-    // Here you would implement the actual save logic
-    console.log("Saving profile data:", formData);
-    setIsEditing(false);
+  const handleSave = async () => {
+    setIsSaving(true);
+    setFormError(null);
+    setFormSuccess(null);
+    try {
+      const result = await updateProfileRequest({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        username: formData.username,
+        bio: formData.bio,
+      });
+      const updatedUser = result.user ?? {};
+      setFormData({
+        firstName: updatedUser.firstName ?? formData.firstName,
+        lastName: updatedUser.lastName ?? formData.lastName,
+        email: updatedUser.email ?? formData.email,
+        username: updatedUser.username ?? formData.username,
+        bio: updatedUser.bio ?? formData.bio,
+      });
+
+      await update?.({
+        user: {
+          ...session?.user,
+          ...updatedUser,
+        },
+      });
+
+      setFormSuccess("Profile updated successfully.");
+      setIsEditing(false);
+    } catch (error) {
+      setFormError((error as Error).message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
-    // Reset form data
     setFormData({
       firstName: (session?.user as any)?.firstName || '',
       lastName: (session?.user as any)?.lastName || '',
@@ -63,17 +103,67 @@ export default function AccountSettingsPage() {
       username: (session?.user as any)?.username || '',
       bio: (session?.user as any)?.bio || '',
     });
+    setFormError(null);
+    setFormSuccess(null);
     setIsEditing(false);
   };
 
   const handleUploadNew = () => {
-    // Placeholder for avatar upload functionality
-    alert("Avatar upload feature coming soon!");
+    fileInputRef.current?.click();
   };
 
-  const handleRemoveAvatar = () => {
-    // Placeholder for avatar removal functionality
-    alert("Avatar removal feature coming soon!");
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setAvatarStatus(null);
+    setIsUploadingAvatar(true);
+
+    try {
+      const data = await uploadAvatarRequest(file, file.name);
+      const newAvatar = data?.profilePicture as string | undefined;
+      setAvatarUrl(newAvatar);
+
+      await update?.({
+        user: {
+          ...session?.user,
+          image: newAvatar,
+          profilePicture: newAvatar,
+        },
+      });
+
+      setAvatarStatus({ type: "success", message: "Avatar updated successfully." });
+    } catch (error) {
+      setAvatarStatus({ type: "error", message: (error as Error).message });
+    } finally {
+      setIsUploadingAvatar(false);
+      event.target.value = "";
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    setAvatarStatus(null);
+    setIsRemovingAvatar(true);
+    try {
+      await removeAvatarRequest();
+
+      setAvatarUrl(undefined);
+      await update?.({
+        user: {
+          ...session?.user,
+          image: null,
+          profilePicture: null,
+        },
+      });
+
+      setAvatarStatus({ type: "success", message: "Avatar removed successfully." });
+    } catch (error) {
+      setAvatarStatus({ type: "error", message: (error as Error).message });
+    } finally {
+      setIsRemovingAvatar(false);
+    }
   };
 
   return (
@@ -108,7 +198,7 @@ export default function AccountSettingsPage() {
             <CardContent>
               <div className="flex items-center gap-6">
                 <Avatar className="h-20 w-20 border-2 border-purple-500/20">
-                  <AvatarImage src={session?.user?.image || undefined} alt={session?.user?.name || "User"} />
+                  <AvatarImage src={avatarUrl} alt={session?.user?.name || "User"} />
                   <AvatarFallback className="text-xl bg-gradient-to-br from-purple-500 to-teal-500 text-white">
                     {getUserInitials()}
                   </AvatarFallback>
@@ -116,22 +206,43 @@ export default function AccountSettingsPage() {
                 <div>
                   <h3 className="text-white font-medium mb-2">Update your profile picture</h3>
                   <div className="flex gap-2">
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       className="bg-purple-600 hover:bg-purple-700 text-white"
                       onClick={handleUploadNew}
+                      disabled={isUploadingAvatar}
                     >
-                      Upload New
+                      {isUploadingAvatar ? "Uploading..." : "Upload New"}
                     </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
+                    <Button
+                      size="sm"
+                      variant="outline"
                       className="border-gray-600 text-gray-300"
                       onClick={handleRemoveAvatar}
+                      disabled={isUploadingAvatar || isRemovingAvatar}
                     >
-                      Remove
+                      {isRemovingAvatar ? "Removing..." : "Remove"}
                     </Button>
                   </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                  {avatarStatus && (
+                    <p
+                      className={
+                        avatarStatus.type === "success"
+                          ? "mt-3 text-sm text-green-400"
+                          : "mt-3 text-sm text-red-400"
+                      }
+                      role="status"
+                    >
+                      {avatarStatus.message}
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -157,9 +268,10 @@ export default function AccountSettingsPage() {
                       size="sm"
                       onClick={handleSave}
                       className="bg-green-600 hover:bg-green-700 text-white"
+                      disabled={isSaving}
                     >
                       <Save className="h-4 w-4 mr-2" />
-                      Save
+                      {isSaving ? "Saving" : "Save"}
                     </Button>
                     <Button
                       size="sm"
@@ -175,6 +287,18 @@ export default function AccountSettingsPage() {
               </div>
             </CardHeader>
             <CardContent>
+              {(formError || formSuccess) && (
+                <div
+                  className={`mb-4 rounded-md border p-3 text-sm ${
+                    formError
+                      ? "border-red-500/50 bg-red-500/10 text-red-200"
+                      : "border-green-500/50 bg-green-500/10 text-green-200"
+                  }`}
+                  role="status"
+                >
+                  {formError ?? formSuccess}
+                </div>
+              )}
               <div className="space-y-6">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>

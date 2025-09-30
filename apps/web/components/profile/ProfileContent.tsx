@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { ArrowLeft, Edit2, Music, Users, TrendingUp, Settings, Share } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,15 +10,62 @@ import { RoleSwitchModal } from "@/components/profile/role-switch-modal";
 import { useRouter } from "next/navigation";
 import { Play } from "lucide-react";
 import Image from "next/image";
+import {
+  fetchProfile,
+  type ProfileApiResponse,
+  type ProfileStats,
+  type ProfileTrack,
+  type ProfilePlaylist,
+  type ProfileActivity,
+} from "@/lib/profile-client";
 
 export function ProfileContent() {
   const { data: session } = useSession() || {};
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [profile, setProfile] = useState<ProfileApiResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!session?.user?.email) {
+      return;
+    }
+
+    const controller = new AbortController();
+    let isSubscribed = true;
+
+    const loadProfile = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const data = await fetchProfile(controller.signal);
+        if (isSubscribed) {
+          setProfile(data);
+        }
+      } catch (fetchError) {
+        if (isSubscribed && (fetchError as Error).name !== "AbortError") {
+          setError((fetchError as Error).message);
+        }
+      } finally {
+        if (isSubscribed) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      isSubscribed = false;
+      controller.abort();
+    };
+  }, [session?.user?.email, refreshKey]);
 
   if (!mounted || !session?.user) return null;
 
@@ -29,78 +76,100 @@ export function ProfileContent() {
     return (session?.user as any)?.firstName?.[0]?.toUpperCase() || 'U';
   };
 
-  // Check if user is a creator - normalize to uppercase for consistency
-  const userType = (session?.user as any)?.userType?.toUpperCase() || 'LISTENER';
+  const userType = useMemo(() => {
+    const fromProfile = profile?.user?.userType;
+    const fromSession = (session?.user as any)?.userType;
+    return (fromProfile || fromSession || 'LISTENER').toUpperCase();
+  }, [profile?.user?.userType, session?.user]);
   const isCreator = userType === 'CREATOR';
 
-  // Mock profile data
-  const profileData = {
-    username: "@johnsmith",
-    joinDate: "Member since 2024",
-    bio: "Music enthusiast exploring the future of audio with blockchain technology. Always discovering new sounds.",
-    stats: {
-      tracksPlayed: 1234,
-      following: 156,
-      shcEarned: 2847
-    },
-    recentlyPlayed: [
-      {
-        id: "1",
-        title: "Eclipse Dreams",
-        artist: "Olivia Stevenson",
-        coverUrl: "https://cdn.abacus.ai/images/54bba0a5-d7a3-4904-a5e1-103d1a723dfa.png"
-      },
-      {
-        id: "2",
-        title: "Neon Nights",
-        artist: "Synthwave Collective",
-        coverUrl: "https://cdn.abacus.ai/images/94e2cc7d-dba9-45d0-83d9-1c9ec8996080.png"
-      },
-      {
-        id: "3",
-        title: "Digital Pulse",
-        artist: "Echo Chamber",
-        coverUrl: "https://cdn.abacus.ai/images/2b100ce8-407d-46ab-8d4d-0b4c3e6d2e6f.png"
-      }
-    ],
-    playlists: [
-      {
-        id: "1",
-        name: "My Favorites",
-        trackCount: 47
-      },
-      {
-        id: "2",
-        name: "Chill Vibes",
-        trackCount: 23
-      },
-      {
-        id: "3",
-        name: "Workout Mix",
-        trackCount: 35
-      }
-    ],
-    recentActivity: [
-      {
-        id: "1",
-        type: "liked",
-        description: "Added Eclipse Dreams to favorites",
-        time: "2h ago"
-      },
-      {
-        id: "2",
-        type: "earned",
-        description: "Earned 45 SHC from listening",
-        time: "3h ago"
-      },
-      {
-        id: "3",
-        type: "created",
-        description: "Created playlist Chill Vibes",
-        time: "1d ago"
-      }
-    ]
+  const displayName = useMemo(() => {
+    if (profile?.user?.firstName || profile?.user?.lastName) {
+      return `${profile?.user?.firstName ?? ''} ${profile?.user?.lastName ?? ''}`.trim();
+    }
+
+    return session.user.name || session.user.email?.split('@')[0] || 'User';
+  }, [profile?.user?.firstName, profile?.user?.lastName, session.user]);
+
+  const username = profile?.user?.username
+    ? `@${profile.user.username}`
+    : (session?.user as any)?.username
+      ? `@${(session?.user as any)?.username}`
+      : `@${session.user.email?.split('@')[0] ?? 'user'}`;
+
+  const joinDate = profile?.user?.createdAt
+    ? new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(
+        new Date(profile.user.createdAt)
+      )
+    : null;
+
+  const stats: Required<ProfileStats> = {
+    tracksPlayed: profile?.stats?.tracksPlayed ?? 0,
+    following: profile?.stats?.following ?? 0,
+    shcEarned: profile?.stats?.shcEarned ?? 0,
   };
+
+  const recentlyPlayed: ProfileTrack[] = profile?.recentlyPlayed ?? [];
+  const playlists: ProfilePlaylist[] = profile?.playlists ?? [];
+  const recentActivity: ProfileActivity[] = profile?.recentActivity ?? [];
+
+  const profileAvatar = profile?.user?.profilePicture || profile?.user?.avatar || session.user.image || undefined;
+
+  const handleRetry = () => {
+    setRefreshKey((current) => current + 1);
+  };
+
+  if (isLoading && !profile) {
+    return (
+      <div className="min-h-screen bg-[#121212] pb-20 md:pb-8">
+        <header className="p-6 border-b border-gray-800 md:ml-60">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.back()}
+                className="text-gray-400 hover:text-white md:hidden"
+                aria-label="Back"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button variant="ghost" size="sm" className="text-gray-400" disabled>
+                <Share className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="text-gray-400" disabled>
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </header>
+        <main className="md:ml-60 p-6" aria-busy="true">
+          <div className="animate-pulse space-y-6">
+            <div className="h-10 bg-gray-800 rounded w-48" />
+            <div className="h-64 bg-gray-800 rounded" />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error && !profile) {
+    return (
+      <div className="min-h-screen bg-[#121212] pb-20 md:pb-8">
+        <main className="md:ml-60 p-6 flex flex-col items-center justify-center text-center space-y-4">
+          <h1 className="text-2xl font-semibold text-white">Unable to load your profile</h1>
+          <p className="text-gray-400 max-w-md">
+            {error}
+          </p>
+          <Button onClick={handleRetry} className="bg-purple-600 hover:bg-purple-700 text-white">
+            Try Again
+          </Button>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#121212] pb-20 md:pb-8">
@@ -118,10 +187,10 @@ export function ProfileContent() {
             </Button>
           </div>
           <div className="flex items-center space-x-2">
-            <RoleSwitchModal 
-              currentRole={((session?.user as any)?.userType?.toUpperCase() || 'LISTENER') as 'LISTENER' | 'CREATOR'}
-              username={(session?.user as any)?.username || session?.user?.email?.split('@')[0] || 'user'}
-              sciId={(session?.user as any)?.sciId}
+            <RoleSwitchModal
+              currentRole={userType as 'LISTENER' | 'CREATOR'}
+              username={profile?.user?.username || (session?.user as any)?.username || session?.user?.email?.split('@')[0] || 'user'}
+              sciId={profile?.user?.sciId || (session?.user as any)?.sciId}
               isRoleRestricted={
                 session?.user?.email === 'creatoronly@shellff.com' ||
                 (session?.user as any)?.settings?.roleRestrictedToCreator === true
@@ -139,13 +208,23 @@ export function ProfileContent() {
 
       {/* Main Content */}
       <main className="md:ml-60 p-6">
+        {error && profile && (
+          <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">
+            <div className="flex items-center justify-between">
+              <span>{error}</span>
+              <Button size="sm" variant="ghost" className="text-red-200 hover:text-white" onClick={handleRetry}>
+                Retry
+              </Button>
+            </div>
+          </div>
+        )}
         {/* Profile Header */}
         <div className="mb-8">
           <div className="flex flex-col md:flex-row md:items-start space-y-4 md:space-y-0 md:space-x-6">
             {/* Avatar */}
             <div className="relative">
               <Avatar className="w-32 h-32 border-4 border-purple-500/20">
-                <AvatarImage src={session.user.image || undefined} alt={session.user.name || "User"} />
+                <AvatarImage src={profileAvatar} alt={displayName || "User"} />
                 <AvatarFallback className="text-2xl bg-gradient-to-br from-purple-500 to-teal-500 text-white">
                   {getUserInitials()}
                 </AvatarFallback>
@@ -163,20 +242,22 @@ export function ProfileContent() {
             <div className="flex-1">
               <div className="flex items-center space-x-3 mb-2">
                 <h1 className="text-3xl font-bold text-white font-poppins">
-                  {session.user.name || session.user.email?.split('@')[0] || 'John Smith'}
+                  {displayName}
                 </h1>
                 <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
                   <Edit2 className="h-4 w-4" />
                 </Button>
               </div>
-              
+
               <div className="flex flex-col space-y-2 mb-4">
-                <p className="text-purple-400 font-medium">{profileData.username}</p>
-                <p className="text-gray-400 text-sm">{profileData.joinDate}</p>
+                <p className="text-purple-400 font-medium">{username}</p>
+                <p className="text-gray-400 text-sm">
+                  {joinDate ? `Member since ${joinDate}` : 'Member since —'}
+                </p>
               </div>
-              
+
               <p className="text-gray-300 mb-6 max-w-md">
-                {profileData.bio}
+                {profile?.user?.bio || 'Add a bio to personalize your profile and share your music journey with others.'}
               </p>
 
               {/* Stats */}
@@ -185,23 +266,23 @@ export function ProfileContent() {
                   <div className="flex items-center space-x-1 text-purple-400 mb-1">
                     <Music className="h-4 w-4" />
                   </div>
-                  <p className="text-2xl font-bold text-white">{profileData.stats.tracksPlayed.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-white">{stats.tracksPlayed.toLocaleString()}</p>
                   <p className="text-gray-400 text-sm">Tracks Played</p>
                 </div>
-                
+
                 <div className="text-center">
                   <div className="flex items-center space-x-1 text-teal-400 mb-1">
                     <Users className="h-4 w-4" />
                   </div>
-                  <p className="text-2xl font-bold text-white">{profileData.stats.following}</p>
+                  <p className="text-2xl font-bold text-white">{stats.following}</p>
                   <p className="text-gray-400 text-sm">Following</p>
                 </div>
-                
+
                 <div className="text-center">
                   <div className="flex items-center space-x-1 text-green-400 mb-1">
                     <TrendingUp className="h-4 w-4" />
                   </div>
-                  <p className="text-2xl font-bold text-white">{profileData.stats.shcEarned.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-white">{stats.shcEarned.toLocaleString()}</p>
                   <p className="text-gray-400 text-sm">SHC Earned</p>
                 </div>
               </div>
@@ -218,39 +299,43 @@ export function ProfileContent() {
               <section>
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-white font-poppins">Recently Played</h2>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     className="text-teal-400 hover:text-teal-300 font-medium"
                     onClick={() => router.push('/library')}
                   >
                     View All
                   </Button>
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {profileData.recentlyPlayed.map((track) => (
-                    <div key={track.id} className="group cursor-pointer bg-gray-900 rounded-2xl p-4 hover:bg-gray-800 transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <div className="relative w-16 h-16 rounded-xl overflow-hidden">
-                          <Image
-                            src={track.coverUrl}
-                            alt={`${track.title} by ${track.artist}`}
-                            fill
-                            className="object-cover"
-                            sizes="64px"
-                          />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
-                            <Play className="h-5 w-5 text-white" />
+
+                {recentlyPlayed.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {recentlyPlayed.map((track) => (
+                      <div key={track.id} className="group cursor-pointer bg-gray-900 rounded-2xl p-4 hover:bg-gray-800 transition-colors">
+                        <div className="flex items-center space-x-3">
+                          <div className="relative w-16 h-16 rounded-xl overflow-hidden">
+                            <Image
+                              src={track.coverUrl}
+                              alt={`${track.title} by ${track.artist}`}
+                              fill
+                              className="object-cover"
+                              sizes="64px"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
+                              <Play className="h-5 w-5 text-white" />
+                            </div>
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-white text-sm mb-1">{track.title}</h3>
+                            <p className="text-gray-400 text-xs">{track.artist}</p>
                           </div>
                         </div>
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-white text-sm mb-1">{track.title}</h3>
-                          <p className="text-gray-400 text-xs">{track.artist}</p>
-                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm">You have not played any tracks recently.</p>
+                )}
               </section>
 
               {/* My Playlists */}
@@ -265,17 +350,21 @@ export function ProfileContent() {
                   </Button>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {profileData.playlists.map((playlist) => (
-                    <div key={playlist.id} className="bg-gray-900 rounded-2xl p-4 hover:bg-gray-800 transition-colors cursor-pointer">
-                      <div className="w-full aspect-square bg-gradient-to-br from-purple-500/20 to-teal-500/20 rounded-xl mb-4 flex items-center justify-center">
-                        <div className="text-2xl font-bold text-white/50">{playlist.name[0]}</div>
+                {playlists.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {playlists.map((playlist) => (
+                      <div key={playlist.id} className="bg-gray-900 rounded-2xl p-4 hover:bg-gray-800 transition-colors cursor-pointer">
+                        <div className="w-full aspect-square bg-gradient-to-br from-purple-500/20 to-teal-500/20 rounded-xl mb-4 flex items-center justify-center">
+                          <div className="text-2xl font-bold text-white/50">{playlist.name[0]}</div>
+                        </div>
+                        <h3 className="font-semibold text-white mb-1">{playlist.name}</h3>
+                        <p className="text-gray-400 text-sm">{playlist.trackCount} tracks</p>
                       </div>
-                      <h3 className="font-semibold text-white mb-1">{playlist.name}</h3>
-                      <p className="text-gray-400 text-sm">{playlist.trackCount} tracks</p>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm">Create playlists to organize your favorite music.</p>
+                )}
               </section>
             </>
           )}
@@ -295,30 +384,34 @@ export function ProfileContent() {
                   </Button>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {profileData.recentlyPlayed.map((track) => (
-                    <div key={track.id} className="group cursor-pointer bg-gray-900 rounded-2xl p-4 hover:bg-gray-800 transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <div className="relative w-16 h-16 rounded-xl overflow-hidden">
-                          <Image
-                            src={track.coverUrl}
-                            alt={`${track.title} by ${track.artist}`}
-                            fill
-                            className="object-cover"
-                            sizes="64px"
-                          />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
-                            <Play className="h-5 w-5 text-white" />
+                {recentlyPlayed.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {recentlyPlayed.map((track) => (
+                      <div key={track.id} className="group cursor-pointer bg-gray-900 rounded-2xl p-4 hover:bg-gray-800 transition-colors">
+                        <div className="flex items-center space-x-3">
+                          <div className="relative w-16 h-16 rounded-xl overflow-hidden">
+                            <Image
+                              src={track.coverUrl}
+                              alt={`${track.title} by ${track.artist}`}
+                              fill
+                              className="object-cover"
+                              sizes="64px"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
+                              <Play className="h-5 w-5 text-white" />
+                            </div>
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-white text-sm mb-1">{track.title}</h3>
+                            <p className="text-gray-400 text-xs">{track.artist}</p>
                           </div>
                         </div>
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-white text-sm mb-1">{track.title}</h3>
-                          <p className="text-gray-400 text-xs">{Math.floor(Math.random() * 10000)} streams</p>
-                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm">Upload your first track to start building momentum.</p>
+                )}
               </section>
 
               {/* Creator Analytics Summary */}
@@ -369,36 +462,29 @@ export function ProfileContent() {
             <h2 className="text-xl font-bold text-white font-poppins mb-6">Recent Activity</h2>
             
             <div className="space-y-3">
-              {(isCreator ? [
-                {
-                  id: "1",
-                  type: "upload",
-                  description: "Uploaded new track: Eclipse Dreams",
-                  time: "2h ago"
-                },
-                {
-                  id: "2",
-                  type: "earned",
-                  description: "Earned 45 SHC from streams",
-                  time: "3h ago"
-                },
-                {
-                  id: "3",
-                  type: "followers",
-                  description: "Gained 8 new followers",
-                  time: "1d ago"
-                }
-              ] : profileData.recentActivity).map((activity) => (
-                <div key={activity.id} className="flex items-center space-x-3 p-3 bg-gray-900 rounded-xl">
+              {recentActivity.length > 0 ? (
+                recentActivity.map((activity) => (
+                  <div key={activity.id} className="flex items-center space-x-3 p-3 bg-gray-900 rounded-xl">
+                    <div className="w-8 h-8 bg-purple-500/20 rounded-full flex items-center justify-center">
+                      <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-white text-sm">{activity.description}</p>
+                      <p className="text-gray-400 text-xs">{activity.time}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="flex items-center space-x-3 p-3 bg-gray-900 rounded-xl">
                   <div className="w-8 h-8 bg-purple-500/20 rounded-full flex items-center justify-center">
                     <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
                   </div>
                   <div className="flex-1">
-                    <p className="text-white text-sm">{activity.description}</p>
-                    <p className="text-gray-400 text-xs">{activity.time}</p>
+                    <p className="text-white text-sm">No recent activity yet.</p>
+                    <p className="text-gray-400 text-xs">—</p>
                   </div>
                 </div>
-              ))}
+              )}
             </div>
           </section>
         </div>
