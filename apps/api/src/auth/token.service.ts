@@ -148,12 +148,12 @@ export class TokenService {
       throw new UnauthorizedException('Invalid token signature');
     }
 
-    const headerJson = JSON.parse(base64UrlDecode(header));
+    const headerJson = this.decodeJsonSegment<{ alg: string }>(header, 'header');
     if (headerJson.alg !== TOKEN_ALG) {
       throw new UnauthorizedException('Unsupported token algorithm');
     }
 
-    const payloadJson = JSON.parse(base64UrlDecode(payload));
+    const payloadJson = this.decodeJsonSegment<Record<string, unknown>>(payload, 'payload');
     if (
       typeof payloadJson.exp !== 'number' ||
       typeof payloadJson.iat !== 'number'
@@ -167,5 +167,22 @@ export class TokenService {
     }
 
     return payloadJson;
+  }
+
+  private decodeJsonSegment<T extends Record<string, unknown>>(
+    segment: string,
+    part: 'header' | 'payload',
+  ): T {
+    try {
+      const decoded = base64UrlDecode(segment);
+      const parsed = JSON.parse(decoded);
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        throw new Error('Segment did not decode to an object');
+      }
+
+      return parsed as T;
+    } catch {
+      throw new UnauthorizedException(`Malformed token ${part}`);
+    }
   }
 }
