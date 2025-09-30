@@ -1,0 +1,6 @@
+{
+  "name": "@nestjs/throttler",
+  "version": "5.1.0",
+  "main": "index.js",
+  "types": "index.d.ts"
+}

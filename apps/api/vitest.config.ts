@@ -1,15 +1,8 @@
 import path from 'node:path';
-
 import { defineConfig } from 'vitest/config';
-
 export default defineConfig({
   resolve: {
     alias: {
-      '@nestjs/throttler': path.resolve(
-        __dirname,
-        '../..',
-        'packages/nest-throttler/index.js',
-      ),
       '@shellff/config': path.resolve(
         __dirname,
         '../..',
