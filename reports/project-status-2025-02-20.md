@@ -1,4 +1,10 @@
 # Project Status — 2025-02-20
+
+## Executive Summary — February 20 Update
+- Introduced a shared `@shellff/config` workspace package so apps pull consistent ESLint and TypeScript settings, and broadened the root `.gitignore` to keep transient artifacts like `cookies.txt` out of version control.【F:packages/config/package.json†L1-L12】【F:.gitignore†L1-L47】【F:.gitignore†L63-L66】
+- Rebuilt the API data layer with release, unlock, wallet, and download domain models, delivered the associated SQL migration, and seeded representative data spanning demo releases, codes, wallets, and download bundles for end-to-end testing.【F:apps/api/prisma/migrations/20250220020000_add_unlock_wallet_download/migration.sql†L1-L153】【F:apps/api/prisma/migrations/20250220020000_add_unlock_wallet_download/migration.sql†L154-L208】【F:apps/api/prisma/seed.ts†L220-L334】【F:apps/api/prisma/seed.ts†L335-L452】
+- Exposed the new `publicId` across the in-memory Prisma harness and web schema while updating the unlock album page to route unauthenticated listeners through the canonical `/auth/login` flow.【F:apps/api/test/utils/in-memory-prisma.service.ts†L8-L123】【F:apps/api/test/utils/in-memory-prisma.service.ts†L171-L202】【F:apps/web/prisma/schema.prisma†L1-L28】【F:apps/web/app/unlock-album/page.tsx†L1-L88】
+
 ## 1. Completed Work to Date
 ### Monorepo, Tooling, and Quality Gates
 - Rebuilt the workspace around pnpm and Turbo so lint, typecheck, test, and build steps fan out across every package via shared scripts and pipeline definitions, establishing the slice roadmap’s required tooling baseline.【F:package.json†L1-L28】【F:pnpm-workspace.yaml†L1-L4】【F:turbo.json†L1-L1】
