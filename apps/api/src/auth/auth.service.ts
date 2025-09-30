@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
-import { Prisma, RoleType } from '@prisma/client';
+import { Prisma, RefreshToken, RoleType } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
 
 import { AuditService } from '../audit/audit.service';
@@ -123,6 +123,43 @@ export class AuthService {
     return session;
   }
 
+  async refresh(refreshToken: string): Promise<AuthSession> {
+    const { payload } = await this.validateRefreshGrant(refreshToken);
+    const user = await this.loadUserProfile(payload.sub);
+    const session = await this.issueSession(user);
+
+    await this.auditService.recordEvent({
+      actorUserId: user.id,
+      actorType: 'user',
+      event: 'auth.refresh',
+      target: user.id,
+      metadata: {
+        replacedTokenId: payload.jti,
+      },
+    });
+
+    return session;
+  }
+
+  async logout(refreshToken: string): Promise<void> {
+    const { payload, record } = await this.validateRefreshGrant(refreshToken);
+
+    await this.prisma.refreshToken.update({
+      where: { id: record.id },
+      data: { revokedAt: new Date() },
+    });
+
+    await this.auditService.recordEvent({
+      actorUserId: payload.sub,
+      actorType: 'user',
+      event: 'auth.logout',
+      target: payload.sub,
+      metadata: {
+        refreshTokenId: record.id,
+      },
+    });
+  }
+
   private async issueSession(user: UserWithRelations): Promise<AuthSession> {
     const uniqueRoles = Array.from(
       new Set(user.roles.map((assignment) => assignment.role.name)),
@@ -203,5 +240,34 @@ export class AuthService {
 
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
+  }
+
+  private async validateRefreshGrant(refreshToken: string): Promise<{
+    payload: { sub: string; jti: string };
+    record: RefreshToken;
+  }> {
+    const payload = this.tokenService.verifyRefreshToken(refreshToken);
+    const record = await this.prisma.refreshToken.findUnique({
+      where: { id: payload.jti },
+    });
+
+    if (!record || record.userId !== payload.sub) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    if (record.revokedAt) {
+      throw new UnauthorizedException('Refresh token has been revoked');
+    }
+
+    if (record.expiresAt.getTime() <= Date.now()) {
+      throw new UnauthorizedException('Refresh token has expired');
+    }
+
+    const expectedHash = this.hashToken(refreshToken);
+    if (record.tokenHash !== expectedHash) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    return { payload, record };
   }
 }

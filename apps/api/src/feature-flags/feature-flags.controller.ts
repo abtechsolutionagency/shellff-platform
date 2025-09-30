@@ -8,14 +8,20 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import type { RoleType } from '@prisma/client';
 
 import { EvaluateFlagDto } from './dto/evaluate-flag.dto';
 import { UpdateFeatureFlagDto } from './dto/update-flag.dto';
 import { UpsertFlagOverrideDto } from './dto/upsert-override.dto';
 import { FeatureFlagsService } from './feature-flags.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RequireRoles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
 
-@UseGuards(JwtAuthGuard)
+const MANAGEMENT_ROLES: RoleType[] = ['ADMIN', 'MODERATOR'];
+
+@UseGuards(JwtAuthGuard, RolesGuard)
+@RequireRoles(...MANAGEMENT_ROLES)
 @Controller('feature-flags')
 export class FeatureFlagsController {
   constructor(private readonly featureFlagsService: FeatureFlagsService) {}

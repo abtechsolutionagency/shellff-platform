@@ -116,6 +116,61 @@ describe('Auth & Management e2e', () => {
     expect(auditLogs.status, JSON.stringify(auditLogs.body)).toBe(401);
   });
 
+  it('returns 403 when authenticated callers lack admin or moderator roles', async () => {
+    const signup = await httpRequest(app, 'POST', '/auth/signup', {
+      email: 'listener-only@example.com',
+      password: 'Password123!',
+      displayName: 'Listener Only',
+    });
+
+    const targetUser = await prisma.user.create({
+      data: {
+        email: 'target2@example.com',
+        displayName: 'Target User',
+        passwordHash: hashPassword('Password123!'),
+        primaryRole: RoleType.LISTENER,
+        roles: {
+          create: { role: { connect: { name: RoleType.LISTENER } } },
+        },
+      },
+    });
+
+    const roleAttempt = await httpRequest(
+      app,
+      'POST',
+      '/roles/grant',
+      {
+        userId: targetUser.id,
+        role: RoleType.CREATOR,
+        actorType: 'user',
+        actorUserId: signup.body.user.id,
+      },
+      { Authorization: `Bearer ${signup.body.tokens.accessToken}` },
+    );
+
+    expect(roleAttempt.status, JSON.stringify(roleAttempt.body)).toBe(403);
+
+    const flagAttempt = await httpRequest(
+      app,
+      'PATCH',
+      '/feature-flags/demo-flag',
+      {
+        enabled: true,
+      },
+      { Authorization: `Bearer ${signup.body.tokens.accessToken}` },
+    );
+    expect(flagAttempt.status, JSON.stringify(flagAttempt.body)).toBe(403);
+
+    const auditAttempt = await httpRequest(
+      app,
+      'GET',
+      '/audit/logs',
+      undefined,
+      { Authorization: `Bearer ${signup.body.tokens.accessToken}` },
+    );
+    expect(auditAttempt.status, JSON.stringify(auditAttempt.body)).toBe(403);
+  });
+
   it('issues new access tokens on login and revokes previous refresh grants', async () => {
     const password = 'Password123!';
     const listener = await prisma.user.create({
@@ -162,6 +217,73 @@ describe('Auth & Management e2e', () => {
     expect(previous.replacedByTokenId).toBe(current.id);
   });
 
+  it('rotates refresh tokens through the refresh endpoint', async () => {
+    const password = 'Password123!';
+    const listener = await prisma.user.create({
+      data: {
+        email: 'refresh@example.com',
+        displayName: 'Refresh User',
+        passwordHash: hashPassword(password),
+        primaryRole: RoleType.LISTENER,
+        roles: {
+          create: { role: { connect: { name: RoleType.LISTENER } } },
+        },
+      },
+    });
+
+    const login = await httpRequest(app, 'POST', '/auth/login', {
+      email: listener.email,
+      password,
+    });
+
+    expect(login.status, JSON.stringify(login.body)).toBe(201);
+
+    const refresh = await httpRequest(app, 'POST', '/auth/refresh', {
+      refreshToken: login.body.tokens.refreshToken,
+    });
+
+    expect(refresh.status, JSON.stringify(refresh.body)).toBe(200);
+    expect(refresh.body.tokens.refreshToken).not.toEqual(
+      login.body.tokens.refreshToken,
+    );
+
+    const tokens = await prisma.refreshToken.findMany({
+      where: { userId: listener.id },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    expect(tokens).toHaveLength(2);
+    expect(tokens[0].revokedAt).not.toBeNull();
+    expect(tokens[0].replacedByTokenId).toBe(tokens[1].id);
+  });
+
+  it('revokes refresh tokens on logout', async () => {
+    const signup = await httpRequest(app, 'POST', '/auth/signup', {
+      email: 'logout@example.com',
+      password: 'Password123!',
+      displayName: 'Logout User',
+    });
+
+    const logout = await httpRequest(app, 'POST', '/auth/logout', {
+      refreshToken: signup.body.tokens.refreshToken,
+    });
+
+    expect(logout.status, JSON.stringify(logout.body)).toBe(204);
+
+    const tokens = await prisma.refreshToken.findMany({
+      where: { userId: signup.body.user.id },
+    });
+
+    expect(tokens).toHaveLength(1);
+    expect(tokens[0].revokedAt).not.toBeNull();
+
+    const refresh = await httpRequest(app, 'POST', '/auth/refresh', {
+      refreshToken: signup.body.tokens.refreshToken,
+    });
+
+    expect(refresh.status, JSON.stringify(refresh.body)).toBe(401);
+  });
+
   it('allows authenticated role grants and audits failures', async () => {
     const signup = await httpRequest(app, 'POST', '/auth/signup', {
       email: 'actor@example.com',
@@ -169,7 +291,31 @@ describe('Auth & Management e2e', () => {
       displayName: 'Actor User',
     });
 
-    const accessToken = signup.body.tokens.accessToken as string;
+    const adminRole = await prisma.role.findUnique({
+      where: { name: RoleType.ADMIN },
+    });
+    if (!adminRole) {
+      throw new Error('Admin role missing in test setup');
+    }
+    await prisma.userRole.create({
+      data: {
+        userId: signup.body.user.id,
+        roleId: adminRole.id,
+      },
+    });
+    await prisma.user.update({
+      where: { id: signup.body.user.id },
+      data: { primaryRole: RoleType.ADMIN },
+    });
+
+    const adminLogin = await httpRequest(app, 'POST', '/auth/login', {
+      email: 'actor@example.com',
+      password: 'Password123!',
+    });
+
+    expect(adminLogin.status, JSON.stringify(adminLogin.body)).toBe(201);
+
+    const accessToken = adminLogin.body.tokens.accessToken as string;
     const targetUser = await prisma.user.create({
       data: {
         email: 'target@example.com',
@@ -190,7 +336,7 @@ describe('Auth & Management e2e', () => {
         userId: targetUser.id,
         role: 'NON_EXISTENT' as unknown as RoleType,
         actorType: 'user',
-        actorUserId: signup.body.user.id,
+        actorUserId: adminLogin.body.user.id,
       },
       { Authorization: `Bearer ${accessToken}` },
     );
@@ -204,7 +350,7 @@ describe('Auth & Management e2e', () => {
         userId: targetUser.id,
         role: RoleType.CREATOR,
         actorType: 'user',
-        actorUserId: signup.body.user.id,
+        actorUserId: adminLogin.body.user.id,
       },
       { Authorization: `Bearer ${accessToken}` },
     );

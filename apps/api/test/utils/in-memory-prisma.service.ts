@@ -350,6 +350,46 @@ export function createInMemoryPrisma(): PrismaService {
         }
         return results.map(clone);
       },
+      async findUnique(params: any) {
+        const id = params.where?.id;
+        if (!id) {
+          return null;
+        }
+        const record = refreshTokens.find((entry) => entry.id === id);
+        return record ? clone(record) : null;
+      },
+      async update(params: any) {
+        const id = params.where?.id;
+        if (!id) {
+          throw new Error('RefreshToken.update requires an id');
+        }
+        const record = refreshTokens.find((entry) => entry.id === id);
+        if (!record) {
+          throw new Error('Refresh token not found');
+        }
+
+        const data = params.data ?? {};
+        if (data.tokenHash !== undefined) {
+          record.tokenHash = data.tokenHash;
+        }
+        if (data.expiresAt !== undefined) {
+          record.expiresAt = new Date(data.expiresAt);
+        }
+        if (data.revokedAt !== undefined) {
+          record.revokedAt = data.revokedAt ? new Date(data.revokedAt) : null;
+        }
+        if (data.replacedByTokenId !== undefined) {
+          record.replacedByTokenId = data.replacedByTokenId ?? null;
+        }
+        if (data.userAgent !== undefined) {
+          record.userAgent = data.userAgent ?? null;
+        }
+        if (data.ipAddress !== undefined) {
+          record.ipAddress = data.ipAddress ?? null;
+        }
+        record.updatedAt = now();
+        return clone(record);
+      },
       async updateMany(params: any) {
         const where = params.where ?? {};
         let count = 0;

@@ -1,12 +1,14 @@
 import 'reflect-metadata';
 
 import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
 
 import { AuditController } from '../../src/audit/audit.controller';
 import { AuditService } from '../../src/audit/audit.service';
 import { AuthController } from '../../src/auth/auth.controller';
 import { AuthService } from '../../src/auth/auth.service';
 import { JwtAuthGuard } from '../../src/auth/jwt-auth.guard';
+import { RolesGuard } from '../../src/auth/roles.guard';
 import { TokenService } from '../../src/auth/token.service';
 import { FeatureFlagsController } from '../../src/feature-flags/feature-flags.controller';
 import { FeatureFlagsService } from '../../src/feature-flags/feature-flags.service';
@@ -36,5 +38,6 @@ ensureMetadata(AuditController, [AuditService]);
 ensureMetadata(AuditService, [PrismaService]);
 ensureMetadata(TokenService, [ConfigService]);
 ensureMetadata(JwtAuthGuard, [TokenService]);
+ensureMetadata(RolesGuard, [Reflector]);
 ensureMetadata(TelemetryController, [TelemetryService]);
 ensureMetadata(TelemetryService, [PrismaService]);
