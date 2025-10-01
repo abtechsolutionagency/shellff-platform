@@ -78,4 +78,4 @@ async function refreshSessionCookie(
     sameSite: 'lax',
     secure: cookieName === SESSION_TOKEN_COOKIE,
     path: '/',
-  }
+  });
