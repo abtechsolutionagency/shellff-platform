@@ -43,7 +43,12 @@ The `make_pr` tool cannot accept binary payloads, so every slice must keep the r
 ## Vertical Slice Review
 ### Slice 1 — Auth & Sessions
 - **Shipped:** Implemented login, OTP, and registration UX within `apps/web/components/auth`, wired NextAuth session handling through `apps/web/lib/auth.ts` and the `apps/web/app/api/auth` routes, and exposed matching NestJS auth endpoints in `apps/api/src/auth` for credential issuance, refresh, and logout.
-- **Gaps:** Wire the new device/session persistence into the service layer, expose password reset and OTP flows, centralise rate limiting/monitoring, add analytics instrumentation, and deliver end-to-end coverage to validate cross-channel handshakes.
+- **Gaps:**
+  - Land service-layer wiring that persists device and session records through Prisma and prove it with auth refresh/logout tests showing rows created and revoked per device.
+  - Publish OTP and password reset endpoints with matching web flows and acceptance specs that demonstrate token issuance, verification, and invalidation.
+  - Centralise throttling and monitoring in a shared module with dashboards or logs that confirm rate-limit hits and anomaly alerts during load tests.
+  - Instrument analytics events for each auth milestone and document dashboards or queries that surface OTP, reset, and session metrics.
+  - Add cross-channel e2e tests (web ↔ API) that exercise login, OTP, reset, and logout journeys to confirm session continuity across devices.
 ### Slice 2 — Profiles & Settings
 - **Shipped:** Profile and settings surfaces now hydrate through the shared `/api/profile` client, deliver error states, call the profile and avatar REST endpoints for edits, and include integration tests that lock in both successful updates and failure handling.【F:apps/web/components/profile/ProfileContent.tsx†L4-L260】【F:apps/web/app/settings/account/page.tsx†L4-L260】【F:apps/web/lib/profile-client.ts†L1-L138】【F:apps/web/lib/__tests__/profile-client.test.ts†L1-L152】
 - **Gaps:** Extend the profile feature set with password change UX, ensure role switches trigger session refreshes, and add coverage for password/role flows once implemented.【F:apps/web/app/api/profile/password/route.ts†L9-L78】【F:apps/web/app/api/profile/role-switch/route.ts†L8-L99】
