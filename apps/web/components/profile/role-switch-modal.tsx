@@ -6,9 +6,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Loader2, Music, Crown, Headphones } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ArrowRight, Loader2, Music, Crown, Headphones, AlertCircle, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { UserType } from '@prisma/client';
+import { switchRole, type SwitchRoleResponse } from '@/lib/profile-client';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+
+export function getRoleSwitchSuccessMessage(result: SwitchRoleResponse): string {
+  return result.message;
+}
+
+export function getRoleSwitchErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Failed to switch role';
+}
+
+export function getRoleSwitchDestination(role: Extract<UserType, 'LISTENER' | 'CREATOR'>): string {
+  return role === 'CREATOR' ? '/creator/releases' : '/dashboard';
+}
 
 interface RoleSwitchModalProps {
   currentRole: UserType;
@@ -20,9 +36,16 @@ interface RoleSwitchModalProps {
 export function RoleSwitchModal({ currentRole, username: _username, sciId, isRoleRestricted = false }: RoleSwitchModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [feedback, setFeedback] = useState<
+    { type: 'success' | 'error'; message: string }
+  | null
+  >(null);
   const { toast } = useToast();
+  const { data: session, update: updateSession } = useSession();
+  const router = useRouter();
 
-  const targetRole = currentRole === UserType.LISTENER ? UserType.CREATOR : UserType.LISTENER;
+  const targetRole: Extract<UserType, 'LISTENER' | 'CREATOR'> =
+    currentRole === UserType.LISTENER ? UserType.CREATOR : UserType.LISTENER;
 
   // Don't render the switch button for role-restricted accounts or admin users
   if (isRoleRestricted || currentRole === UserType.ADMIN) {
@@ -31,45 +54,42 @@ export function RoleSwitchModal({ currentRole, username: _username, sciId, isRol
 
   const handleRoleSwitch = async () => {
     setIsLoading(true);
-    
+    setFeedback(null);
+
     try {
-      const response = await fetch('/api/profile/role-switch', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          newRole: targetRole,
-        }),
-      });
+      const result = await switchRole({ newRole: targetRole });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to switch role');
-      }
+      const successMessage = getRoleSwitchSuccessMessage(result);
 
-      const result = await response.json();
-      
       toast({
         title: 'Success!',
-        description: result.message,
+        description: successMessage,
       });
 
-      setIsOpen(false);
-      
-      // Force a full page reload to refresh the session and UI
+      setFeedback({ type: 'success', message: successMessage });
+
+      const updatedUser = result.user;
+      await updateSession?.({
+        user: {
+          ...session?.user,
+          ...(updatedUser ?? {}),
+          userType: updatedUser?.userType ?? targetRole,
+        },
+      });
+
       setTimeout(() => {
-        if (targetRole === 'CREATOR') {
-          window.location.href = '/creator/releases';
-        } else {
-          window.location.href = '/dashboard';
-        }
-      }, 500);
+        const destination = getRoleSwitchDestination(targetRole);
+        router.push(destination);
+        router.refresh();
+        setIsOpen(false);
+      }, 600);
     } catch (error) {
       console.error('Role switch error:', error);
+      const message = getRoleSwitchErrorMessage(error);
+      setFeedback({ type: 'error', message });
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to switch role',
+        description: message,
         variant: 'destructive',
       });
     } finally {
@@ -122,8 +142,15 @@ export function RoleSwitchModal({ currentRole, username: _username, sciId, isRol
   const CurrentIcon = currentInfo.icon;
   const TargetIcon = targetInfo.icon;
 
+  const handleDialogChange = (open: boolean) => {
+    setIsOpen(open);
+    if (!open) {
+      setFeedback(null);
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleDialogChange}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           <Crown className="h-4 w-4 mr-2" />
@@ -134,8 +161,22 @@ export function RoleSwitchModal({ currentRole, username: _username, sciId, isRol
         <DialogHeader>
           <DialogTitle className="font-poppins text-xl">Switch Account Type</DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-6 overflow-y-auto flex-1 pr-2">
+          {feedback && (
+            <Alert variant={feedback.type === 'error' ? 'destructive' : 'default'}>
+              <AlertTitle className="flex items-center gap-2">
+                {feedback.type === 'error' ? (
+                  <AlertCircle className="h-4 w-4" />
+                ) : (
+                  <CheckCircle className="h-4 w-4" />
+                )}
+                {feedback.type === 'error' ? 'Role switch failed' : 'Role updated'}
+              </AlertTitle>
+              <AlertDescription>{feedback.message}</AlertDescription>
+            </Alert>
+          )}
+
           {/* Current vs Target Role Comparison */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Current Role */}

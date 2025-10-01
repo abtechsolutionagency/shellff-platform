@@ -73,6 +73,32 @@ export type UpdateProfileResponse = {
   };
 };
 
+export type ChangePasswordPayload = {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
+export type ChangePasswordResponse = {
+  message: string;
+};
+
+export type SwitchRolePayload = {
+  newRole: 'LISTENER' | 'CREATOR';
+};
+
+export type SwitchRoleResponse = {
+  message: string;
+  user?: {
+    id: string;
+    userType: 'LISTENER' | 'CREATOR';
+    sciId: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    username: string | null;
+  };
+};
+
 const parseJsonSafely = async (response: Response) => {
   try {
     return await response.json();
@@ -138,4 +164,40 @@ export async function removeAvatar(): Promise<void> {
   if (!response.ok) {
     throw new Error(body?.error ?? "Failed to remove avatar");
   }
+}
+
+export async function changePassword(payload: ChangePasswordPayload): Promise<ChangePasswordResponse> {
+  const response = await fetch("/api/profile/password", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const body = await parseJsonSafely(response);
+
+  if (!response.ok) {
+    throw new Error(body?.error ?? "Failed to change password");
+  }
+
+  return (body as ChangePasswordResponse) ?? { message: "Password updated successfully" };
+}
+
+export async function switchRole(payload: SwitchRolePayload): Promise<SwitchRoleResponse> {
+  const response = await fetch("/api/profile/role-switch", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const body = await parseJsonSafely(response);
+
+  if (!response.ok) {
+    throw new Error(body?.error ?? "Failed to switch role");
+  }
+
+  return body as SwitchRoleResponse;
 }

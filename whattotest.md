@@ -25,3 +25,11 @@
 - Sign in on the web client, then refresh the session through the API client to ensure tokens remain valid across channels.
 - Complete OTP verification from the web UI while observing API logs to confirm the same session is maintained.
 - Execute password reset and logout flows from both web and API clients and verify device session continuity and revocation behave consistently.
+
+# Slice 2 — Profiles & Settings
+
+## Password and Role Management
+- Exercise the settings password form with a valid current password and a strong replacement to confirm the `/api/profile/password` endpoint persists the hash, the UI surfaces the success alert, and follow-up logins require the new secret.
+- Attempt the password change with an invalid current password or mismatched confirmation and ensure the UI shows the failure alert while the API responds with the appropriate 400 error payload.
+- Switch from Listener to Creator via the role-switch modal and verify `/api/profile/role-switch` rotates the session cookie, updates the JWT payload, and the dashboard redirect lands on the Creator space without requiring a manual refresh.
+- Force an error scenario for role switching (e.g., backend restriction) and confirm the modal surfaces the destructive alert, the toast captures the failure, and the session cookie remains untouched.

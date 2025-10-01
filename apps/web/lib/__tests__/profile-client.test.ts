@@ -4,8 +4,12 @@ import {
   updateProfile,
   uploadAvatar,
   removeAvatar,
+  changePassword,
+  switchRole,
   type ProfileApiResponse,
   type UpdateProfileResponse,
+  type ChangePasswordResponse,
+  type SwitchRoleResponse,
 } from "../profile-client";
 
 describe("profile-client", () => {
@@ -147,6 +151,96 @@ describe("profile-client", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/profile/avatar",
       expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("changes a password successfully", async () => {
+    const payload = {
+      currentPassword: "oldPassword!1",
+      newPassword: "NewPassword!2",
+      confirmPassword: "NewPassword!2",
+    };
+
+    const mockResponse: ChangePasswordResponse = {
+      message: "Password updated successfully",
+    };
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockResponse,
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(changePassword(payload)).resolves.toEqual(mockResponse);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/profile/password",
+      expect.objectContaining({
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }),
+    );
+  });
+
+  it("throws when password change fails", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: "Current password is incorrect" }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      changePassword({
+        currentPassword: "wrong",
+        newPassword: "ValidPass!2",
+        confirmPassword: "ValidPass!2",
+      })
+    ).rejects.toThrow("Current password is incorrect");
+  });
+
+  it("switches roles and returns the updated user", async () => {
+    const mockResponse: SwitchRoleResponse = {
+      message: "Successfully switched to creator",
+      user: {
+        id: "1",
+        userType: "CREATOR",
+        sciId: "SCI123456",
+        firstName: "Jane",
+        lastName: "Doe",
+        username: "jane-doe",
+      },
+    };
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockResponse,
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(switchRole({ newRole: "CREATOR" })).resolves.toEqual(mockResponse);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/profile/role-switch",
+      expect.objectContaining({
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newRole: "CREATOR" }),
+      }),
+    );
+  });
+
+  it("throws when role switching fails", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: "Role switch not allowed" }),
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(switchRole({ newRole: "LISTENER" })).rejects.toThrow(
+      "Role switch not allowed",
     );
   });
 });

@@ -6,9 +6,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Lock, Loader2, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { changePassword, type ChangePasswordResponse } from '@/lib/profile-client';
+
+export function getPasswordChangeSuccessMessage(result?: ChangePasswordResponse | null): string {
+  return result?.message ?? 'Password changed successfully';
+}
+
+export function getPasswordChangeErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Failed to change password';
+}
 
 interface PasswordStrength {
   score: number;
@@ -28,6 +37,10 @@ export function PasswordChange() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [statusMessage, setStatusMessage] = useState<
+    { type: 'success' | 'error'; message: string }
+  | null
+  >(null);
   const { toast } = useToast();
 
   const handleInputChange = (field: string, value: string) => {
@@ -35,6 +48,9 @@ export function PasswordChange() {
     // Clear errors when user starts typing
     if (errors.length > 0) {
       setErrors([]);
+    }
+    if (statusMessage) {
+      setStatusMessage(null);
     }
   };
 
@@ -72,6 +88,7 @@ export function PasswordChange() {
     event.preventDefault();
     
     const newErrors: string[] = [];
+    setStatusMessage(null);
 
     if (!formData.currentPassword) {
       newErrors.push('Current password is required');
@@ -100,26 +117,20 @@ export function PasswordChange() {
 
     setIsLoading(true);
     try {
-      const response = await fetch('/api/profile/password', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          currentPassword: formData.currentPassword,
-          newPassword: formData.newPassword,
-          confirmPassword: formData.confirmPassword,
-        }),
+      const result = await changePassword({
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword,
+        confirmPassword: formData.confirmPassword,
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to change password');
-      }
 
       toast({
         title: 'Success',
-        description: 'Password changed successfully',
+        description: getPasswordChangeSuccessMessage(result),
+      });
+
+      setStatusMessage({
+        type: 'success',
+        message: getPasswordChangeSuccessMessage(result),
       });
 
       // Reset form
@@ -130,9 +141,14 @@ export function PasswordChange() {
       });
     } catch (error) {
       console.error('Password change error:', error);
+      const message = getPasswordChangeErrorMessage(error);
+      setStatusMessage({
+        type: 'error',
+        message,
+      });
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to change password',
+        description: message,
         variant: 'destructive',
       });
     } finally {
@@ -168,6 +184,19 @@ export function PasswordChange() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {statusMessage && (
+              <Alert variant={statusMessage.type === 'error' ? 'destructive' : 'default'}>
+                <AlertTitle className="flex items-center gap-2">
+                  {statusMessage.type === 'error' ? (
+                    <AlertCircle className="h-4 w-4" />
+                  ) : (
+                    <CheckCircle className="h-4 w-4" />
+                  )}
+                  {statusMessage.type === 'error' ? 'Password update failed' : 'Password updated'}
+                </AlertTitle>
+                <AlertDescription>{statusMessage.message}</AlertDescription>
+              </Alert>
+            )}
             {errors.length > 0 && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />

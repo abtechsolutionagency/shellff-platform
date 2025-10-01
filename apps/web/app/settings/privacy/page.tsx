@@ -7,6 +7,7 @@ import { Navbar } from "@/components/navigation/navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronLeft, Shield, Construction } from "lucide-react";
+import { PasswordChange } from "@/components/settings/password-change";
 import Link from "next/link";
 
 export default function PrivacySettingsPage() {
@@ -58,27 +59,41 @@ export default function PrivacySettingsPage() {
           </div>
         </div>
 
-        <Card className="bg-gray-800/50 border-gray-700">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-poppins text-white">
-              <Construction className="h-5 w-5 text-purple-400" />
-              Coming Soon
-            </CardTitle>
-            <CardDescription className="text-gray-400">
-              Advanced privacy controls will be available in Slice 11
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-300 font-inter">
-              Enhanced privacy and security features including data export, account deletion, 
-              two-factor authentication, and GDPR compliance tools will be implemented in the 
-              upcoming DevOps, Moderation and Compliance slice.
-            </p>
-            <p className="text-gray-300 font-inter mt-4">
-              For now, you can manage basic privacy settings in the Account Settings page.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="space-y-8">
+          <Card className="bg-gray-800/50 border-gray-700">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 font-poppins text-white">
+                <Construction className="h-5 w-5 text-purple-400" />
+                Coming Soon
+              </CardTitle>
+              <CardDescription className="text-gray-400">
+                Advanced privacy controls will be available in Slice 11
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-300 font-inter">
+                Enhanced privacy and security features including data export, account deletion,
+                two-factor authentication, and GDPR compliance tools will be implemented in the
+                upcoming DevOps, Moderation and Compliance slice.
+              </p>
+              <p className="text-gray-300 font-inter mt-4">
+                For now, you can manage basic privacy settings in the Account Settings page.
+              </p>
+            </CardContent>
+          </Card>
+
+          <section aria-labelledby="password-management" className="max-w-3xl">
+            <div className="mb-4">
+              <h2 id="password-management" className="text-2xl font-semibold text-white font-poppins">
+                Password security
+              </h2>
+              <p className="text-gray-300 font-inter">
+                Change your password whenever you suspect unauthorized access or want to keep your account fresh.
+              </p>
+            </div>
+            <PasswordChange />
+          </section>
+        </div>
       </div>
     </div>
   );
