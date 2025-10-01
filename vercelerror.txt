@@ -1,0 +1,13 @@
+Failed to compile.
+./app/api/profile/role-switch/route.ts:54:5
+Type error: Type 'Record<string, unknown>' is missing the following properties from type 'JWT': id, userType
+  52 |
+  53 |   const encodedToken = await encode({
+> 54 |     token: tokenPayload,
+     |     ^
+  55 |     secret,
+  56 |     maxAge: sessionMaxAge,
+  57 |   });
+Next.js build worker exited with code: 1 and signal: null
+ ELIFECYCLE  Command failed with exit code 1.
+Error: Command "pnpm build" exited with 1
