@@ -95,42 +95,52 @@ enum DownloadFormat {
   WAV
 }
 
+enum SessionStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+  TERMINATED
+}
+
 model User {
-  id             String    @id @default(uuid())
-  email          String    @unique
-  phone          String?   @unique
-  publicId       String?   @unique
-  passwordHash   String
-  displayName    String
-  primaryRole    RoleType  @default(LISTENER)
-  status         String    @default("active")
-  creatorProfile Creator?
-  roles          UserRole[]
-  refreshTokens  RefreshToken[]
-  auditLogs      AuditLog[] @relation("AuditActor")
+  id                   String                @id @default(uuid())
+  email                String                @unique
+  phone                String?               @unique
+  publicId             String?               @unique
+  passwordHash         String
+  displayName          String
+  primaryRole          RoleType              @default(LISTENER)
+  status               String                @default("active")
+  creatorProfile       Creator?
+  roles                UserRole[]
+  refreshTokens        RefreshToken[]
+  passwordResetTokens  PasswordResetToken[]
+  sessions             UserSession[]
+  devices              UserDevice[]
+  auditLogs            AuditLog[]            @relation("AuditActor")
   featureFlagOverrides FeatureFlagOverride[]
-  releases       Release[]
-  createdUnlockCodes   UnlockCode[] @relation("CreatorUnlockCodes")
-  redeemedUnlockCodes  UnlockCode[] @relation("RedeemerUnlockCodes")
+  releases             Release[]
+  createdUnlockCodes   UnlockCode[]          @relation("CreatorUnlockCodes")
+  redeemedUnlockCodes  UnlockCode[]          @relation("RedeemerUnlockCodes")
   releaseAccesses      ReleaseAccess[]
-  wallets        Wallet[]
-  downloadBundles DownloadBundle[]
-  codeRedemptionLogs CodeRedemptionLog[]
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  wallets              Wallet[]
+  downloadBundles      DownloadBundle[]
+  codeRedemptionLogs   CodeRedemptionLog[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 }
 
 model Role {
-  id        Int       @id @default(autoincrement())
-  name      RoleType  @unique
+  id        Int        @id @default(autoincrement())
+  name      RoleType   @unique
   users     UserRole[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 }
 
 model UserRole {
-  userId    String
-  roleId    Int
+  userId     String
+  roleId     Int
   assignedAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -150,14 +160,14 @@ model Creator {
 }
 
 model AuditLog {
-  id           String   @id @default(uuid())
-  actorUserId  String?
-  actorType    String
-  event        String
-  target       String?
-  metadata     Json?
-  requestId    String?
-  createdAt    DateTime @default(now())
+  id          String   @id @default(uuid())
+  actorUserId String?
+  actorType   String
+  event       String
+  target      String?
+  metadata    Json?
+  requestId   String?
+  createdAt   DateTime @default(now())
 
   actor User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
@@ -167,52 +177,125 @@ model AuditLog {
 }
 
 model FeatureFlag {
-  id          String                   @id @default(uuid())
-  key         String                   @unique
+  id          String                 @id @default(uuid())
+  key         String                 @unique
   description String?
-  enabled     Boolean                  @default(false)
-  rolloutType FeatureFlagRolloutType   @default(STATIC)
-  createdAt   DateTime                 @default(now())
-  updatedAt   DateTime                 @updatedAt
+  enabled     Boolean                @default(false)
+  rolloutType FeatureFlagRolloutType @default(STATIC)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
   overrides   FeatureFlagOverride[]
 }
 
 model FeatureFlagOverride {
-  id          String                  @id @default(uuid())
+  id          String                 @id @default(uuid())
   flagId      String
   userId      String?
-  environment FeatureFlagEnvironment  @default(LOCAL)
-  value       Boolean                 @default(false)
+  environment FeatureFlagEnvironment @default(LOCAL)
+  value       Boolean                @default(false)
   notes       String?
-  createdAt   DateTime                @default(now())
+  createdAt   DateTime               @default(now())
 
   flag FeatureFlag @relation(fields: [flagId], references: [id], onDelete: Cascade)
   user User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  @@unique([flagId, environment, userId])
   @@index([flagId])
   @@index([userId])
-  @@unique([flagId, environment, userId])
 }
 
 model RefreshToken {
-  id               String   @id @default(uuid())
-  userId           String
-  tokenHash        String
-  issuedAt         DateTime @default(now())
-  expiresAt        DateTime
-  revokedAt        DateTime?
+  id                String    @id @default(uuid())
+  userId            String
+  tokenHash         String
+  issuedAt          DateTime  @default(now())
+  expiresAt         DateTime
+  revokedAt         DateTime?
   replacedByTokenId String?
-  userAgent        String?
-  ipAddress        String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  sessionId         String?
+  userAgent         String?
+  ipAddress         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  replacement   RefreshToken? @relation("RefreshTokenReplacement", fields: [replacedByTokenId], references: [id])
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session        UserSession?   @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  replacement    RefreshToken?  @relation("RefreshTokenReplacement", fields: [replacedByTokenId], references: [id])
   replacedTokens RefreshToken[] @relation("RefreshTokenReplacement")
 
   @@index([userId])
-  @@index([tokenHash])
+  @@unique([tokenHash])
+  @@index([sessionId])
+}
+
+model PasswordResetToken {
+  id           String    @id @default(uuid())
+  userId       String
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  consumedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  createdByIp  String?
+  consumedByIp String?
+  userAgent    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([userId, consumedAt])
+}
+
+model UserDevice {
+  id          String    @id @default(uuid())
+  userId      String
+  fingerprint String?
+  deviceName  String?
+  deviceType  String?
+  platform    String?
+  osVersion   String?
+  appVersion  String?
+  pushToken   String?
+  trusted     Boolean   @default(true)
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions UserSession[]
+
+  @@index([userId])
+  @@index([fingerprint])
+  @@index([pushToken])
+  @@index([userId, trusted])
+}
+
+model UserSession {
+  id               String        @id @default(uuid())
+  userId           String
+  deviceId         String?
+  sessionTokenHash String        @unique
+  status           SessionStatus @default(ACTIVE)
+  ipAddress        String?
+  userAgent        String?
+  location         Json?
+  expiresAt        DateTime
+  lastSeenAt       DateTime?
+  signedOutAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device        UserDevice?    @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  refreshTokens RefreshToken[]
+
+  @@index([userId])
+  @@index([deviceId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([userId, status, expiresAt])
 }
 
 model Release {
@@ -225,14 +308,14 @@ model Release {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  creator     User        @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  tracks      ReleaseTrack[]
-  unlockCodes UnlockCode[]
-  accessGrants ReleaseAccess[]
+  creator         User             @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  tracks          ReleaseTrack[]
+  unlockCodes     UnlockCode[]
+  accessGrants    ReleaseAccess[]
   downloadBundles DownloadBundle[]
 
-  @@index([creatorId])
   @@unique([creatorId, title])
+  @@index([creatorId])
 }
 
 model ReleaseTrack {
@@ -244,30 +327,30 @@ model ReleaseTrack {
   audioUrl  String?
   createdAt DateTime @default(now())
 
-  release Release @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  release        Release         @relation(fields: [releaseId], references: [id], onDelete: Cascade)
   downloadAssets DownloadAsset[]
 
   @@index([releaseId])
 }
 
 model UnlockCode {
-  id                String           @id @default(uuid())
-  code              String           @unique
-  releaseId         String
-  creatorId         String
-  status            UnlockCodeStatus @default(UNUSED)
-  redeemedBy        String?
-  redeemedAt        DateTime?
-  batchId           String?
-  deviceLockedTo    String?
-  ipLockedTo        String?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  id             String           @id @default(uuid())
+  code           String           @unique
+  releaseId      String
+  creatorId      String
+  status         UnlockCodeStatus @default(UNUSED)
+  redeemedBy     String?
+  redeemedAt     DateTime?
+  batchId        String?
+  deviceLockedTo String?
+  ipLockedTo     String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
-  release           Release          @relation(fields: [releaseId], references: [id], onDelete: Cascade)
-  creator           User             @relation("CreatorUnlockCodes", fields: [creatorId], references: [id], onDelete: Cascade)
-  redeemer          User?            @relation("RedeemerUnlockCodes", fields: [redeemedBy], references: [id], onDelete: SetNull)
-  redemptionLogs    CodeRedemptionLog[]
+  release        Release             @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  creator        User                @relation("CreatorUnlockCodes", fields: [creatorId], references: [id], onDelete: Cascade)
+  redeemer       User?               @relation("RedeemerUnlockCodes", fields: [redeemedBy], references: [id], onDelete: SetNull)
+  redemptionLogs CodeRedemptionLog[]
 
   @@index([releaseId])
   @@index([creatorId])
@@ -294,12 +377,12 @@ model CodeRedemptionLog {
 }
 
 model ReleaseAccess {
-  id         String               @id @default(uuid())
-  releaseId  String
-  userId     String
-  source     ReleaseAccessSource  @default(UNLOCK_CODE)
-  grantedAt  DateTime             @default(now())
-  expiresAt  DateTime?
+  id        String              @id @default(uuid())
+  releaseId String
+  userId    String
+  source    ReleaseAccessSource @default(UNLOCK_CODE)
+  grantedAt DateTime            @default(now())
+  expiresAt DateTime?
 
   release Release @relation(fields: [releaseId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -318,7 +401,7 @@ model Wallet {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions WalletTransaction[]
 
   @@unique([userId, type])
@@ -326,22 +409,22 @@ model Wallet {
 }
 
 model WalletTransaction {
-  id               String            @id @default(uuid())
-  walletId         String
-  type             TransactionType
-  status           TransactionStatus @default(PENDING)
-  amount           Decimal           @db.Decimal(20, 8)
-  currency         String
-  description      String?
-  reference        String?           @unique
-  paymentProvider  PaymentProvider?
-  metadata         Json?             @default("{}")
-  fee              Decimal?          @db.Decimal(20, 8)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  completedAt      DateTime?
+  id              String            @id @default(uuid())
+  walletId        String
+  type            TransactionType
+  status          TransactionStatus @default(PENDING)
+  amount          Decimal           @db.Decimal(20, 8)
+  currency        String
+  description     String?
+  reference       String?           @unique
+  paymentProvider PaymentProvider?
+  metadata        Json?             @default("{}")
+  fee             Decimal?          @db.Decimal(20, 8)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  completedAt     DateTime?
 
-  wallet           Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
 
   @@index([walletId])
   @@index([status])
@@ -350,14 +433,14 @@ model WalletTransaction {
 }
 
 model PaymentMethod {
-  id           String          @id @default(uuid())
-  provider     PaymentProvider @unique
-  displayName  String
-  isEnabled    Boolean         @default(true)
-  currency     String          @default("USD")
-  settings     Json            @default("{}")
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  id          String          @id @default(uuid())
+  provider    PaymentProvider @unique
+  displayName String
+  isEnabled   Boolean         @default(true)
+  currency    String          @default("USD")
+  settings    Json            @default("{}")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 }
 
 model DownloadBundle {
@@ -369,9 +452,9 @@ model DownloadBundle {
   completedAt DateTime?
   expiresAt   DateTime?
 
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  release  Release  @relation(fields: [releaseId], references: [id], onDelete: Cascade)
-  assets   DownloadAsset[]
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  release Release         @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  assets  DownloadAsset[]
 
   @@index([userId])
   @@index([releaseId])

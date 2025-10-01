@@ -14,6 +14,8 @@ function createMocks() {
     user: {
       findUnique: vi.fn(),
       findUniqueOrThrow: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
     },
     role: {
       findUnique: vi.fn(),
@@ -23,6 +25,18 @@ function createMocks() {
       findUnique: vi.fn(),
       update: vi.fn(),
       updateMany: vi.fn(),
+    },
+    userSession: {
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    userDevice: {
+      findFirst: vi.fn(),
+      update: vi.fn(),
+      create: vi.fn(),
+    },
+    userRole: {
+      create: vi.fn(),
     },
     $transaction: vi.fn(),
   } as unknown as PrismaService;
@@ -89,6 +103,48 @@ describe('AuthService', () => {
     vi.mocked(prisma.refreshToken.create).mockResolvedValue({} as any);
     vi.mocked(prisma.refreshToken.findUnique).mockResolvedValue(null as any);
     vi.mocked(prisma.refreshToken.update).mockResolvedValue({} as any);
+    vi.mocked(prisma.userSession.create).mockResolvedValue({
+      id: 'session-1',
+      userId: 'user-1',
+      sessionTokenHash: 'hash',
+      status: 'ACTIVE',
+      ipAddress: null,
+      userAgent: null,
+      location: null,
+      expiresAt: refreshTokenResponse.expiresAt,
+      lastSeenAt: refreshTokenResponse.issuedAt,
+      signedOutAt: null,
+      deviceId: null,
+      createdAt: refreshTokenResponse.issuedAt,
+      updatedAt: refreshTokenResponse.issuedAt,
+    } as any);
+    vi.mocked(prisma.userSession.update).mockResolvedValue({
+      id: 'session-1',
+      userId: 'user-1',
+      sessionTokenHash: 'hash',
+      status: 'ACTIVE',
+      ipAddress: null,
+      userAgent: null,
+      location: null,
+      expiresAt: refreshTokenResponse.expiresAt,
+      lastSeenAt: refreshTokenResponse.issuedAt,
+      signedOutAt: null,
+      deviceId: null,
+      createdAt: refreshTokenResponse.issuedAt,
+      updatedAt: refreshTokenResponse.issuedAt,
+    } as any);
+    vi.mocked(prisma.userDevice.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.userDevice.create).mockResolvedValue({ id: 'device-1' } as any);
+
+    vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) =>
+      callback({
+        user: prisma.user,
+        userRole: prisma.userRole,
+        refreshToken: prisma.refreshToken,
+        userSession: prisma.userSession,
+        userDevice: prisma.userDevice,
+      }),
+    );
   });
 
   it('registers a listener, issues tokens, and records audit events', async () => {
@@ -99,20 +155,15 @@ describe('AuthService', () => {
       phone: null,
       primaryRole: 'LISTENER',
       status: 'active',
+      publicId: 'USR-LISTEN-0001',
     };
 
-    const tx = {
-      user: {
-        create: vi.fn().mockResolvedValue(createdUser),
-      },
-      userRole: {
-        create: vi.fn(),
-      },
-    };
-
-    vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.user.findUnique)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(null);
     vi.mocked(prisma.role.findUnique).mockResolvedValue({ id: 1, name: RoleType.LISTENER } as any);
-    vi.mocked(prisma.$transaction).mockImplementation(async (callback: any) => callback(tx));
+    vi.mocked(prisma.user.create).mockResolvedValue(createdUser as any);
+    vi.mocked(prisma.userRole.create).mockResolvedValue({} as any);
     vi.mocked(prisma.user.findUniqueOrThrow).mockResolvedValue({
       ...createdUser,
       roles: [{ role: { name: RoleType.LISTENER } }],
@@ -126,10 +177,13 @@ describe('AuthService', () => {
     });
 
     expect(session.tokens.refreshToken).toBe(refreshTokenResponse.token);
+    expect(session.user.publicId).toBe('USR-LISTEN-0001');
+    expect(session.session.id).toBe('session-1');
     expect(prisma.refreshToken.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           tokenHash: expect.not.stringContaining(refreshTokenResponse.token),
+          sessionId: 'session-1',
         }),
       }),
     );
@@ -147,6 +201,7 @@ describe('AuthService', () => {
       phone: null,
       primaryRole: 'LISTENER',
       status: 'active',
+      publicId: 'USR-LISTEN-0001',
       passwordHash,
       roles: [{ role: { name: RoleType.LISTENER } }],
       creatorProfile: null,
@@ -158,6 +213,8 @@ describe('AuthService', () => {
     });
 
     expect(session.tokens.accessToken).toBe(accessTokenResponse.token);
+    expect(session.tokens.sessionId).toBe('session-1');
+    expect(session.user.publicId).toBe('USR-LISTEN-0001');
     expect(audit.recordEvent).toHaveBeenCalledWith(
       expect.objectContaining({ event: 'auth.login', target: 'user-1' }),
     );
@@ -198,6 +255,7 @@ describe('AuthService', () => {
       issuedAt: new Date(),
       userAgent: null,
       ipAddress: null,
+      sessionId: 'session-1',
       createdAt: new Date(),
       updatedAt: new Date(),
     } as any);
@@ -208,6 +266,7 @@ describe('AuthService', () => {
       phone: null,
       primaryRole: RoleType.LISTENER,
       status: 'active',
+      publicId: 'USR-LISTEN-0001',
       roles: [{ role: { name: RoleType.LISTENER } }],
       creatorProfile: null,
     } as any);
@@ -217,9 +276,10 @@ describe('AuthService', () => {
     expect(session.tokens.accessToken).toBe(accessTokenResponse.token);
     expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { userId: 'user-1', revokedAt: null },
+        where: { userId: 'user-1', sessionId: 'session-1', revokedAt: null },
       }),
     );
+    expect(session.session.id).toBe('session-1');
     expect(audit.recordEvent).toHaveBeenCalledWith(
       expect.objectContaining({ event: 'auth.refresh', target: 'user-1' }),
     );
@@ -245,6 +305,7 @@ describe('AuthService', () => {
       issuedAt: new Date(),
       userAgent: null,
       ipAddress: null,
+      sessionId: 'session-1',
       createdAt: new Date(),
       updatedAt: new Date(),
     } as any);
@@ -254,6 +315,13 @@ describe('AuthService', () => {
     expect(prisma.refreshToken.update).toHaveBeenCalledWith({
       where: { id: 'refresh-id' },
       data: { revokedAt: expect.any(Date) },
+    });
+    expect(prisma.userSession.update).toHaveBeenCalledWith({
+      where: { id: 'session-1' },
+      data: expect.objectContaining({
+        status: 'TERMINATED',
+        signedOutAt: expect.any(Date),
+      }),
     });
     expect(audit.recordEvent).toHaveBeenCalledWith(
       expect.objectContaining({ event: 'auth.logout', target: 'user-1' }),
