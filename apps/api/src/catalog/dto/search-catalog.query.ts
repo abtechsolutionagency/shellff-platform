@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsInt, IsOptional, IsPositive, IsString, Max, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsPositive, IsString, Max } from 'class-validator';
 
 export class SearchCatalogQueryDto {
   @IsString()
@@ -18,4 +18,26 @@ export class SearchCatalogQueryDto {
   @IsPositive()
   @Max(50)
   trackTake?: number;
+
+  @IsOptional()
+  @IsString()
+  region?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined) return undefined;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === 'true' || normalized === '1') {
+        return true;
+      }
+      if (normalized === 'false' || normalized === '0') {
+        return false;
+      }
+    }
+    return Boolean(value);
+  })
+  @IsBoolean()
+  personalized?: boolean;
 }

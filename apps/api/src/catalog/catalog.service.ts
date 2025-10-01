@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 import { ListReleasesQueryDto } from './dto/list-releases.query';
 import { SearchCatalogQueryDto } from './dto/search-catalog.query';
+import { CatalogPipelineService } from './catalog.pipeline.service';
 
 @Injectable()
 export class CatalogService {
@@ -14,6 +15,7 @@ export class CatalogService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly analyticsService: AnalyticsService,
+    private readonly pipeline: CatalogPipelineService,
   ) {}
 
   async listReleases(
@@ -165,36 +167,17 @@ export class CatalogService {
   ) {
     const releaseTake = query.take ?? 5;
     const trackTake = query.trackTake ?? 5;
+    const region = query.region ?? 'global';
+    const personalized = query.personalized ?? false;
 
-    const [releases, tracks] = await this.prisma.$transaction([
-      this.prisma.release.findMany({
-        where: {
-          OR: [
-            { title: { contains: query.query, mode: 'insensitive' } },
-            { description: { contains: query.query, mode: 'insensitive' } },
-          ],
-        },
-        take: releaseTake,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          creator: {
-            select: { id: true, displayName: true, publicId: true },
-          },
-        },
-      }),
-      this.prisma.releaseTrack.findMany({
-        where: {
-          title: { contains: query.query, mode: 'insensitive' },
-        },
-        take: trackTake,
-        orderBy: { position: 'asc' },
-        include: {
-          release: {
-            select: { id: true, title: true, coverArt: true, creatorId: true },
-          },
-        },
-      }),
-    ]);
+    const results = await this.pipeline.searchCatalog({
+      query: query.query,
+      releaseTake,
+      trackTake,
+      region,
+      personalized,
+      userId: context.userId ?? null,
+    });
 
     await this.auditService.recordEvent({
       actorUserId: context.userId ?? null,
@@ -202,8 +185,13 @@ export class CatalogService {
       event: 'catalog.search',
       metadata: {
         query: query.query,
-        releaseCount: releases.length,
-        trackCount: tracks.length,
+        releaseCount: results.releases.length,
+        trackCount: results.tracks.length,
+        region,
+        personalized: results.meta.personalization.applied,
+        personalizationRequested: personalized,
+        personalizationSignals: results.meta.personalization.matchedSignals,
+        profileUnavailable: results.meta.personalization.profileUnavailable,
       },
       requestId: context.requestId ?? null,
     });
@@ -212,15 +200,36 @@ export class CatalogService {
       'catalog.search.performed',
       {
         query: query.query,
-        releaseCount: releases.length,
-        trackCount: tracks.length,
+        releaseCount: results.releases.length,
+        trackCount: results.tracks.length,
+        region,
+        personalized: results.meta.personalization.applied,
+        personalizationRequested: personalized,
       },
       { userId: context.userId ?? null, requestId: context.requestId ?? null },
     );
 
-    return {
-      releases,
-      tracks,
-    };
+    if (results.meta.personalization.applied) {
+      await this.analyticsService.track(
+        'catalog.search.personalized',
+        {
+          query: query.query,
+          region,
+          matchedSignals: results.meta.personalization.matchedSignals,
+        },
+        { userId: context.userId ?? null, requestId: context.requestId ?? null },
+      );
+    } else if (personalized && results.meta.personalization.profileUnavailable) {
+      await this.analyticsService.track(
+        'catalog.search.personalization_unavailable',
+        {
+          query: query.query,
+          region,
+        },
+        { userId: context.userId ?? null, requestId: context.requestId ?? null },
+      );
+    }
+
+    return results;
   }
 }
