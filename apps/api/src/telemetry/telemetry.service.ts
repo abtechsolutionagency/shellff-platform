@@ -2,10 +2,14 @@ import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import * as os from 'node:os';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { RateLimitMonitorService } from './rate-limit-monitor.service';
 
 @Injectable()
 export class TelemetryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rateLimitMonitor: RateLimitMonitorService,
+  ) {}
 
   async getHealth() {
     try {
@@ -49,6 +53,7 @@ export class TelemetryService {
       rss: memory.rss,
       heapUsed: memory.heapUsed,
       external: memory.external,
+      rateLimit: this.rateLimitMonitor.snapshot(),
     };
   }
 }

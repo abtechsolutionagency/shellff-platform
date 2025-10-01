@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '../prisma/prisma.service';
 
 import { TelemetryService } from './telemetry.service';
+import type { RateLimitMonitorService } from './rate-limit-monitor.service';
 
 describe('TelemetryService', () => {
   const version = '1.2.3-test';
@@ -16,7 +17,8 @@ describe('TelemetryService', () => {
       $queryRaw: vi.fn().mockResolvedValueOnce([{ '?column?': 1 }]),
     } as unknown as PrismaService;
 
-    const service = new TelemetryService(prisma);
+    const monitor = { snapshot: vi.fn().mockReturnValue([]) } as unknown as RateLimitMonitorService;
+    const service = new TelemetryService(prisma, monitor);
     const payload = await service.getHealth();
 
     expect(prisma.$queryRaw).toHaveBeenCalled();
@@ -28,7 +30,8 @@ describe('TelemetryService', () => {
       $queryRaw: vi.fn(),
     } as unknown as PrismaService;
 
-    const service = new TelemetryService(prisma);
+    const monitor = { snapshot: vi.fn().mockReturnValue([]) } as unknown as RateLimitMonitorService;
+    const service = new TelemetryService(prisma, monitor);
 
     expect(service.getVersion()).toBe(version);
   });
@@ -38,7 +41,8 @@ describe('TelemetryService', () => {
       $queryRaw: vi.fn().mockResolvedValue([{ '?column?': 1 }]),
     } as unknown as PrismaService;
 
-    const service = new TelemetryService(prisma);
+    const monitor = { snapshot: vi.fn().mockReturnValue([]) } as unknown as RateLimitMonitorService;
+    const service = new TelemetryService(prisma, monitor);
     const status = await service.getStatus();
 
     expect(status.status).toBe('ok');

@@ -1,13 +1,19 @@
 import { createHash } from 'node:crypto';
 
-import { RoleType } from '@prisma/client';
+import { RoleType, SessionStatus } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { AuditService } from '../audit/audit.service';
+import { AuditService } from '../audit/audit.service';
+import { AnalyticsService } from '../analytics/analytics.service';
+import type { AnalyticsService as AnalyticsServiceType } from '../analytics/analytics.service';
 import type { PrismaService } from '../prisma/prisma.service';
-import { hashPassword } from './password.util';
+import type { EnvConfig } from '../config/env.validation';
+import { createInMemoryPrisma } from '../../test/utils/in-memory-prisma.service';
+import { hashPassword, verifyPassword } from './password.util';
 import { AuthService } from './auth.service';
-import type { TokenService } from './token.service';
+import { TokenService } from './token.service';
+import { OtpService } from './otp.service';
 
 function createMocks() {
   const prisma = {
@@ -51,7 +57,33 @@ function createMocks() {
     verifyRefreshToken: vi.fn(),
   } as unknown as TokenService;
 
-  return { prisma, audit, tokenService };
+  const otpService = {
+    issue: vi.fn(),
+    verify: vi.fn(),
+  } as unknown as OtpService;
+
+  const analyticsService = {
+    track: vi.fn(),
+  } as unknown as AnalyticsServiceType;
+
+  return { prisma, audit, tokenService, otpService, analyticsService };
+}
+
+function createEnvConfig(): EnvConfig {
+  return {
+    NODE_ENV: 'test',
+    APP_PORT: 3000,
+    DATABASE_URL: 'postgresql://test:test@localhost:5432/testdb',
+    REDIS_URL: 'redis://localhost:6379',
+    MINIO_ENDPOINT: 'http://localhost:9000',
+    MINIO_ACCESS_KEY: 'test-access',
+    MINIO_SECRET_KEY: 'test-secret',
+    FEATURE_FLAG_CACHE_TTL_SECONDS: 60,
+    JWT_ACCESS_TOKEN_SECRET: 'access-secret',
+    JWT_ACCESS_TOKEN_TTL_SECONDS: 900,
+    JWT_REFRESH_TOKEN_SECRET: 'refresh-secret',
+    JWT_REFRESH_TOKEN_TTL_SECONDS: 60 * 60 * 24,
+  } satisfies EnvConfig;
 }
 
 describe('AuthService', () => {
@@ -85,6 +117,8 @@ describe('AuthService', () => {
   let prisma: PrismaService;
   let audit: AuditService;
   let tokenService: TokenService;
+  let otpService: OtpService;
+  let analyticsService: AnalyticsServiceType;
   let service: AuthService;
 
   beforeEach(() => {
@@ -92,7 +126,9 @@ describe('AuthService', () => {
     prisma = mocks.prisma;
     audit = mocks.audit;
     tokenService = mocks.tokenService;
-    service = new AuthService(prisma, audit, tokenService);
+    otpService = mocks.otpService;
+    analyticsService = mocks.analyticsService;
+    service = new AuthService(prisma, audit, analyticsService, tokenService, otpService);
 
     vi.mocked(tokenService.signAccessToken).mockReturnValue(accessTokenResponse);
     vi.mocked(tokenService.signRefreshToken).mockReturnValue(refreshTokenResponse);
@@ -357,5 +393,292 @@ describe('AuthService', () => {
     expect(audit.recordEvent).not.toHaveBeenCalledWith(
       expect.objectContaining({ event: 'auth.refresh' }),
     );
+  });
+});
+
+describe('AuthService session persistence with in-memory Prisma', () => {
+  const loginDto = {
+    email: 'listener@example.com',
+    password: 'StrongPassword!1',
+  } as const;
+
+  function buildTokenService(): TokenService {
+    const config = createEnvConfig();
+    const configService = new ConfigService<EnvConfig, true>(config);
+    return new TokenService(configService);
+  }
+
+  async function seedUser(prisma: PrismaService) {
+    const role = await prisma.role.create({ data: { name: RoleType.LISTENER } });
+    const user = await prisma.user.create({
+      data: {
+        email: loginDto.email,
+        displayName: 'Listener One',
+        passwordHash: hashPassword(loginDto.password),
+      },
+    });
+    await prisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
+    return user;
+  }
+
+  function deviceMetadata(fingerprint: string, overrides: Partial<{ ip: string; userAgent: string }> = {}) {
+    return {
+      ipAddress: overrides.ip ?? '203.0.113.10',
+      userAgent: overrides.userAgent ?? 'Mozilla/5.0 (Macintosh)',
+      device: {
+        fingerprint,
+        name: 'MacBook Pro',
+        type: 'desktop',
+        platform: 'macOS',
+        osVersion: '14.3',
+        appVersion: '1.0.0',
+        trusted: true,
+      },
+    };
+  }
+
+  it('creates device rows, persists sessions, and updates them on refresh', async () => {
+    const prisma = createInMemoryPrisma();
+    const auditService = new AuditService(prisma);
+    const tokenService = buildTokenService();
+    const otpService = new OtpService(prisma);
+    const analyticsService = new AnalyticsService(auditService);
+    const authService = new AuthService(
+      prisma,
+      auditService,
+      analyticsService,
+      tokenService,
+      otpService,
+    );
+    const user = await seedUser(prisma);
+
+    const metadata = deviceMetadata('fp-1');
+    const session = await authService.login(loginDto, metadata);
+
+    const devices = await prisma.userDevice.findMany({ where: { userId: user.id } });
+    expect(devices).toHaveLength(1);
+    expect(devices[0]).toEqual(
+      expect.objectContaining({
+        fingerprint: 'fp-1',
+        deviceName: 'MacBook Pro',
+        trusted: true,
+      }),
+    );
+
+    const sessions = await prisma.userSession.findMany({ where: { userId: user.id } });
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]).toEqual(
+      expect.objectContaining({
+        deviceId: devices[0].id,
+        status: SessionStatus.ACTIVE,
+      }),
+    );
+
+    const refreshed = await authService.refresh(session.tokens.refreshToken, {
+      ...metadata,
+      ipAddress: '203.0.113.11',
+    });
+
+    const refreshRecords = await prisma.refreshToken.findMany({ where: { userId: user.id } });
+    expect(refreshRecords).toHaveLength(2);
+    const originalRecord = refreshRecords.find((entry) => entry.id === session.tokens.refreshTokenId);
+    const replacementRecord = refreshRecords.find((entry) => entry.id === refreshed.tokens.refreshTokenId);
+    expect(originalRecord?.revokedAt).toBeInstanceOf(Date);
+    expect(originalRecord?.replacedByTokenId).toBe(refreshed.tokens.refreshTokenId);
+    expect(replacementRecord?.revokedAt).toBeNull();
+
+    const persistedSession = await prisma.userSession.findUnique({ where: { id: session.session.id } });
+    expect(persistedSession).toEqual(
+      expect.objectContaining({
+        id: session.session.id,
+        deviceId: devices[0].id,
+        ipAddress: '203.0.113.11',
+        status: SessionStatus.ACTIVE,
+      }),
+    );
+  });
+
+  it('revokes only the targeted device session on logout', async () => {
+    const prisma = createInMemoryPrisma();
+    const auditService = new AuditService(prisma);
+    const tokenService = buildTokenService();
+    const otpService = new OtpService(prisma);
+    const analyticsService = new AnalyticsService(auditService);
+    const authService = new AuthService(
+      prisma,
+      auditService,
+      analyticsService,
+      tokenService,
+      otpService,
+    );
+    const user = await seedUser(prisma);
+
+    const sessionA = await authService.login(loginDto, deviceMetadata('fp-1', { ip: '198.51.100.2' }));
+    const sessionB = await authService.login(loginDto, deviceMetadata('fp-2', { ip: '198.51.100.3', userAgent: 'Mozilla/5.0 (iPhone)' }));
+
+    let sessions = await prisma.userSession.findMany({ where: { userId: user.id } });
+    expect(sessions).toHaveLength(2);
+
+    await authService.logout(sessionA.tokens.refreshToken, deviceMetadata('fp-1', { ip: '198.51.100.4' }));
+
+    const terminatedSession = await prisma.userSession.findUnique({ where: { id: sessionA.session.id } });
+    expect(terminatedSession).toEqual(
+      expect.objectContaining({
+        status: SessionStatus.TERMINATED,
+        signedOutAt: expect.any(Date),
+      }),
+    );
+
+    const activeSession = await prisma.userSession.findUnique({ where: { id: sessionB.session.id } });
+    expect(activeSession?.status).toBe(SessionStatus.ACTIVE);
+
+    const refreshA = await prisma.refreshToken.findUnique({ where: { id: sessionA.tokens.refreshTokenId } });
+    const refreshB = await prisma.refreshToken.findUnique({ where: { id: sessionB.tokens.refreshTokenId } });
+    expect(refreshA?.revokedAt).toBeInstanceOf(Date);
+    expect(refreshA?.sessionId).toBe(sessionA.session.id);
+    expect(refreshB?.revokedAt).toBeNull();
+
+    sessions = await prisma.userSession.findMany({ where: { userId: user.id } });
+    const activeCount = sessions.filter((entry) => entry.status === SessionStatus.ACTIVE).length;
+    const terminatedCount = sessions.filter((entry) => entry.status === SessionStatus.TERMINATED).length;
+    expect(activeCount).toBe(1);
+    expect(terminatedCount).toBe(1);
+  });
+});
+
+describe('AuthService OTP and password reset flows', () => {
+  const loginDto = {
+    email: 'listener@example.com',
+    password: 'StrongPassword!1',
+  } as const;
+
+  function buildTokenService(): TokenService {
+    const config = createEnvConfig();
+    const configService = new ConfigService<EnvConfig, true>(config);
+    return new TokenService(configService);
+  }
+
+  async function seedUser(prisma: PrismaService) {
+    const role = await prisma.role.create({ data: { name: RoleType.LISTENER } });
+    const user = await prisma.user.create({
+      data: {
+        email: loginDto.email,
+        displayName: 'Listener One',
+        passwordHash: hashPassword(loginDto.password),
+      },
+    });
+    await prisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
+    return user;
+  }
+
+  function metadata(fingerprint: string) {
+    return {
+      ipAddress: '203.0.113.20',
+      userAgent: 'Vitest Agent',
+      device: {
+        fingerprint,
+        name: 'QA Device',
+        type: 'desktop',
+        platform: 'Linux',
+        osVersion: '6.8',
+        trusted: true,
+      },
+    };
+  }
+
+  it('issues, verifies, and consumes login OTP codes', async () => {
+    const prisma = createInMemoryPrisma();
+    const auditService = new AuditService(prisma);
+    const tokenService = buildTokenService();
+    const otpService = new OtpService(prisma);
+    const analyticsService = new AnalyticsService(auditService);
+    const authService = new AuthService(
+      prisma,
+      auditService,
+      analyticsService,
+      tokenService,
+      otpService,
+    );
+    const user = await seedUser(prisma);
+
+    const request = await authService.requestLoginOtp(loginDto.email, metadata('fp-otp'));
+    expect(request.delivered).toBe(true);
+    expect(request.testCode).toMatch(/\d{6}/);
+
+    const otpRecords = await prisma.otpCode.findMany({ where: { userId: user.id } });
+    expect(otpRecords).toHaveLength(1);
+    expect(otpRecords[0]).toEqual(
+      expect.objectContaining({
+        type: 'LOGIN',
+        consumedAt: null,
+      }),
+    );
+
+    const session = await authService.verifyLoginOtp(
+      loginDto.email,
+      request.testCode!,
+      metadata('fp-otp'),
+    );
+    expect(session.user.id).toBe(user.id);
+
+    const consumed = await prisma.otpCode.findFirst({ where: { userId: user.id } });
+    expect(consumed?.consumedAt).toBeInstanceOf(Date);
+
+    const analyticsLogs = await prisma.auditLog.findMany({
+      where: { event: 'analytics.auth.otp.login.verified' },
+    });
+    expect(analyticsLogs.length).toBeGreaterThan(0);
+  });
+
+  it('resets passwords and revokes sessions through OTP verification', async () => {
+    const prisma = createInMemoryPrisma();
+    const auditService = new AuditService(prisma);
+    const tokenService = buildTokenService();
+    const otpService = new OtpService(prisma);
+    const analyticsService = new AnalyticsService(auditService);
+    const authService = new AuthService(
+      prisma,
+      auditService,
+      analyticsService,
+      tokenService,
+      otpService,
+    );
+    const user = await seedUser(prisma);
+
+    await authService.login(loginDto, metadata('fp-reset'));
+
+    const request = await authService.requestPasswordReset(loginDto.email, metadata('fp-reset'));
+    expect(request.delivered).toBe(true);
+    const code = request.testCode!;
+
+    await authService.confirmPasswordReset(
+      loginDto.email,
+      code,
+      'NewPassword!2',
+      metadata('fp-reset'),
+    );
+
+    const updatedUser = await prisma.user.findUniqueOrThrow({ where: { email: loginDto.email } });
+    expect(verifyPassword('NewPassword!2', updatedUser.passwordHash)).toBe(true);
+
+    const tokens = await prisma.refreshToken.findMany({ where: { userId: user.id } });
+    expect(tokens.every((entry) => entry.revokedAt)).toBe(true);
+
+    const sessions = await prisma.userSession.findMany({ where: { userId: user.id } });
+    expect(sessions.every((entry) => entry.status !== SessionStatus.ACTIVE)).toBe(true);
+
+    await expect(
+      authService.confirmPasswordReset(
+        loginDto.email,
+        code,
+        'AnotherPassword!3',
+        metadata('fp-reset'),
+      ),
+    ).rejects.toThrow('Invalid reset request');
+
+    const analyticsLogs = await prisma.auditLog.findMany({
+      where: { event: 'analytics.auth.password.reset.completed' },
+    });
+    expect(analyticsLogs.length).toBeGreaterThan(0);
   });
 });

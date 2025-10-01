@@ -5,9 +5,11 @@ import { Reflector } from '@nestjs/core';
 
 import { AuditController } from '../../src/audit/audit.controller';
 import { AuditService } from '../../src/audit/audit.service';
+import { AnalyticsService } from '../../src/analytics/analytics.service';
 import { AuthController } from '../../src/auth/auth.controller';
 import { AuthService } from '../../src/auth/auth.service';
 import { JwtAuthGuard } from '../../src/auth/jwt-auth.guard';
+import { OtpService } from '../../src/auth/otp.service';
 import { RolesGuard } from '../../src/auth/roles.guard';
 import { TokenService } from '../../src/auth/token.service';
 import { FeatureFlagsController } from '../../src/feature-flags/feature-flags.controller';
@@ -16,6 +18,7 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { RolesController } from '../../src/roles/roles.controller';
 import { RolesService } from '../../src/roles/roles.service';
 import { TelemetryController } from '../../src/telemetry/telemetry.controller';
+import { RateLimitMonitorService } from '../../src/telemetry/rate-limit-monitor.service';
 import { TelemetryService } from '../../src/telemetry/telemetry.service';
 
 function ensureMetadata(target: Function, dependencies: Function[]) {
@@ -29,7 +32,15 @@ function ensureMetadata(target: Function, dependencies: Function[]) {
 }
 
 ensureMetadata(AuthController, [AuthService]);
-ensureMetadata(AuthService, [PrismaService, AuditService, TokenService]);
+ensureMetadata(AuthService, [
+  PrismaService,
+  AuditService,
+  AnalyticsService,
+  TokenService,
+  OtpService,
+]);
+ensureMetadata(OtpService, [PrismaService]);
+ensureMetadata(AnalyticsService, [AuditService]);
 ensureMetadata(RolesController, [RolesService]);
 ensureMetadata(RolesService, [PrismaService, AuditService]);
 ensureMetadata(FeatureFlagsController, [FeatureFlagsService]);
@@ -40,4 +51,4 @@ ensureMetadata(TokenService, [ConfigService]);
 ensureMetadata(JwtAuthGuard, [TokenService]);
 ensureMetadata(RolesGuard, [Reflector]);
 ensureMetadata(TelemetryController, [TelemetryService]);
-ensureMetadata(TelemetryService, [PrismaService]);
+ensureMetadata(TelemetryService, [PrismaService, RateLimitMonitorService]);

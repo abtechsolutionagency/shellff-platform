@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { RoleType } from '@prisma/client';
+import { RoleType, SessionStatus } from '@prisma/client';
 
 import type { PrismaService } from '../../src/prisma/prisma.service';
 
@@ -51,6 +51,7 @@ type AuditLogRecord = {
 type RefreshTokenRecord = {
   id: string;
   userId: string;
+  sessionId: string | null;
   tokenHash: string;
   issuedAt: Date;
   expiresAt: Date;
@@ -58,6 +59,67 @@ type RefreshTokenRecord = {
   replacedByTokenId: string | null;
   userAgent: string | null;
   ipAddress: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type PasswordResetTokenRecord = {
+  id: string;
+  userId: string;
+  tokenHash: string;
+  expiresAt: Date;
+  consumedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  createdByIp: string | null;
+  consumedByIp: string | null;
+  userAgent: string | null;
+};
+
+type OtpCodeRecord = {
+  id: string;
+  userId: string;
+  codeHash: string;
+  type: string;
+  expiresAt: Date;
+  consumedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  createdByIp: string | null;
+  consumedByIp: string | null;
+  userAgent: string | null;
+};
+
+type UserDeviceRecord = {
+  id: string;
+  userId: string;
+  fingerprint: string | null;
+  deviceName: string | null;
+  deviceType: string | null;
+  platform: string | null;
+  osVersion: string | null;
+  appVersion: string | null;
+  pushToken: string | null;
+  userAgent: string | null;
+  trusted: boolean;
+  firstSeenAt: Date;
+  lastSeenAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type UserSessionRecord = {
+  id: string;
+  userId: string;
+  deviceId: string | null;
+  sessionTokenHash: string;
+  status: SessionStatus;
+  ipAddress: string | null;
+  userAgent: string | null;
+  location: any;
+  expiresAt: Date;
+  lastSeenAt: Date | null;
+  signedOutAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -71,6 +133,10 @@ export function createInMemoryPrisma(): PrismaService {
   const creators: CreatorRecord[] = [];
   const auditLogs: AuditLogRecord[] = [];
   const refreshTokens: RefreshTokenRecord[] = [];
+  const passwordResetTokens: PasswordResetTokenRecord[] = [];
+  const otpCodes: OtpCodeRecord[] = [];
+  const userDevices: UserDeviceRecord[] = [];
+  const userSessions: UserSessionRecord[] = [];
 
   let roleSequence = 1;
 
@@ -192,6 +258,9 @@ export function createInMemoryPrisma(): PrismaService {
         }
         if (data.publicId !== undefined) {
           user.publicId = data.publicId;
+        }
+        if (data.passwordHash !== undefined) {
+          user.passwordHash = data.passwordHash;
         }
         user.updatedAt = now();
         return clone(includeUser(user, params?.include));
@@ -327,6 +396,7 @@ export function createInMemoryPrisma(): PrismaService {
         const record: RefreshTokenRecord = {
           id: data.id ?? randomUUID(),
           userId: data.userId,
+          sessionId: data.sessionId ?? null,
           tokenHash: data.tokenHash,
           issuedAt: data.issuedAt ? new Date(data.issuedAt) : nowDate,
           expiresAt: new Date(data.expiresAt),
@@ -380,6 +450,9 @@ export function createInMemoryPrisma(): PrismaService {
         if (data.expiresAt !== undefined) {
           record.expiresAt = new Date(data.expiresAt);
         }
+        if (data.sessionId !== undefined) {
+          record.sessionId = data.sessionId ?? null;
+        }
         if (data.revokedAt !== undefined) {
           record.revokedAt = data.revokedAt ? new Date(data.revokedAt) : null;
         }
@@ -413,6 +486,429 @@ export function createInMemoryPrisma(): PrismaService {
         return { count };
       },
     },
+    passwordResetToken: {
+      async create(params: any) {
+        const data = params.data;
+        const nowDate = now();
+        const record: PasswordResetTokenRecord = {
+          id: data.id ?? randomUUID(),
+          userId: data.userId,
+          tokenHash: data.tokenHash,
+          expiresAt: new Date(data.expiresAt),
+          consumedAt: data.consumedAt ? new Date(data.consumedAt) : null,
+          createdAt: nowDate,
+          updatedAt: nowDate,
+          createdByIp: data.createdByIp ?? null,
+          consumedByIp: data.consumedByIp ?? null,
+          userAgent: data.userAgent ?? null,
+        };
+        passwordResetTokens.push(record);
+        return clone(record);
+      },
+      async findFirst(params: any) {
+        const where = params?.where ?? {};
+        const record = passwordResetTokens.find((entry) => {
+          if (where.userId && entry.userId !== where.userId) {
+            return false;
+          }
+          if (where.tokenHash && entry.tokenHash !== where.tokenHash) {
+            return false;
+          }
+          if (where.consumedAt === null && entry.consumedAt !== null) {
+            return false;
+          }
+          return true;
+        });
+        return record ? clone(record) : null;
+      },
+      async findMany(params: any = {}) {
+        const where = params.where ?? {};
+        let results = [...passwordResetTokens];
+        if (where.userId) {
+          results = results.filter((entry) => entry.userId === where.userId);
+        }
+        if (where.consumedAt === null) {
+          results = results.filter((entry) => entry.consumedAt === null);
+        }
+        return results.map(clone);
+      },
+      async update(params: any) {
+        const where = params.where ?? {};
+        const record = passwordResetTokens.find((entry) => entry.id === where.id);
+        if (!record) {
+          throw new Error('Password reset token not found');
+        }
+        const data = params.data ?? {};
+        if (data.consumedAt !== undefined) {
+          record.consumedAt = data.consumedAt ? new Date(data.consumedAt) : null;
+        }
+        if (data.consumedByIp !== undefined) {
+          record.consumedByIp = data.consumedByIp ?? null;
+        }
+        if (data.userAgent !== undefined) {
+          record.userAgent = data.userAgent ?? null;
+        }
+        record.updatedAt = now();
+        return clone(record);
+      },
+      async updateMany(params: any) {
+        const where = params.where ?? {};
+        const data = params.data ?? {};
+        let count = 0;
+        for (const record of passwordResetTokens) {
+          if (where.userId && record.userId !== where.userId) {
+            continue;
+          }
+          if (where.consumedAt === null && record.consumedAt !== null) {
+            continue;
+          }
+          if (data.consumedAt !== undefined) {
+            record.consumedAt = data.consumedAt ? new Date(data.consumedAt) : null;
+          }
+          if (data.consumedByIp !== undefined) {
+            record.consumedByIp = data.consumedByIp ?? null;
+          }
+          if (data.userAgent !== undefined) {
+            record.userAgent = data.userAgent ?? null;
+          }
+          record.updatedAt = now();
+          count += 1;
+        }
+        return { count };
+      },
+    },
+    otpCode: {
+      async create(params: any) {
+        const data = params.data;
+        const nowDate = now();
+        const record: OtpCodeRecord = {
+          id: data.id ?? randomUUID(),
+          userId: data.userId,
+          codeHash: data.codeHash,
+          type: data.type,
+          expiresAt: new Date(data.expiresAt),
+          consumedAt: data.consumedAt ? new Date(data.consumedAt) : null,
+          createdAt: nowDate,
+          updatedAt: nowDate,
+          createdByIp: data.createdByIp ?? null,
+          consumedByIp: data.consumedByIp ?? null,
+          userAgent: data.userAgent ?? null,
+        };
+        otpCodes.push(record);
+        return clone(record);
+      },
+      async findFirst(params: any) {
+        const where = params?.where ?? {};
+        const record = otpCodes.find((entry) => {
+          if (where.userId && entry.userId !== where.userId) {
+            return false;
+          }
+          if (where.type && entry.type !== where.type) {
+            return false;
+          }
+          if (where.consumedAt === null && entry.consumedAt !== null) {
+            return false;
+          }
+          return true;
+        });
+        return record ? clone(record) : null;
+      },
+      async findMany(params: any = {}) {
+        const where = params.where ?? {};
+        let results = [...otpCodes];
+        if (where.userId) {
+          results = results.filter((entry) => entry.userId === where.userId);
+        }
+        if (where.type) {
+          results = results.filter((entry) => entry.type === where.type);
+        }
+        if (where.consumedAt === null) {
+          results = results.filter((entry) => entry.consumedAt === null);
+        }
+        return results.map(clone);
+      },
+      async update(params: any) {
+        const where = params.where ?? {};
+        const record = otpCodes.find((entry) => entry.id === where.id);
+        if (!record) {
+          throw new Error('OTP code not found');
+        }
+        const data = params.data ?? {};
+        if (data.consumedAt !== undefined) {
+          record.consumedAt = data.consumedAt ? new Date(data.consumedAt) : null;
+        }
+        if (data.consumedByIp !== undefined) {
+          record.consumedByIp = data.consumedByIp ?? null;
+        }
+        if (data.userAgent !== undefined) {
+          record.userAgent = data.userAgent ?? null;
+        }
+        record.updatedAt = now();
+        return clone(record);
+      },
+      async updateMany(params: any) {
+        const where = params.where ?? {};
+        const data = params.data ?? {};
+        let count = 0;
+        for (const record of otpCodes) {
+          if (where.userId && record.userId !== where.userId) {
+            continue;
+          }
+          if (where.type && record.type !== where.type) {
+            continue;
+          }
+          if (where.consumedAt === null && record.consumedAt !== null) {
+            continue;
+          }
+          if (data.consumedAt !== undefined) {
+            record.consumedAt = data.consumedAt ? new Date(data.consumedAt) : null;
+          }
+          if (data.consumedByIp !== undefined) {
+            record.consumedByIp = data.consumedByIp ?? null;
+          }
+          if (data.userAgent !== undefined) {
+            record.userAgent = data.userAgent ?? null;
+          }
+          record.updatedAt = now();
+          count += 1;
+        }
+        return { count };
+      },
+      async deleteMany(params: any) {
+        const where = params?.where ?? {};
+        const remaining: OtpCodeRecord[] = [];
+        let count = 0;
+        for (const record of otpCodes) {
+          let match = true;
+          if (where.userId && record.userId !== where.userId) {
+            match = false;
+          }
+          if (where.type && record.type !== where.type) {
+            match = false;
+          }
+          if (where.consumedAt === null && record.consumedAt !== null) {
+            match = false;
+          }
+          if (match) {
+            count += 1;
+          } else {
+            remaining.push(record);
+          }
+        }
+        otpCodes.length = 0;
+        otpCodes.push(...remaining);
+        return { count };
+      },
+    },
+    userDevice: {
+      async findFirst(params: any) {
+        const where = params?.where ?? {};
+        const record = userDevices.find((entry) => {
+          if (where.userId && entry.userId !== where.userId) {
+            return false;
+          }
+          if (where.fingerprint && entry.fingerprint !== where.fingerprint) {
+            return false;
+          }
+          if (where.userAgent && entry.userAgent !== where.userAgent) {
+            return false;
+          }
+          return true;
+        });
+        return record ? clone(record) : null;
+      },
+      async findMany(params: any = {}) {
+        const where = params.where ?? {};
+        let results = [...userDevices];
+        if (where.userId) {
+          results = results.filter((entry) => entry.userId === where.userId);
+        }
+        if (where.id) {
+          results = results.filter((entry) => entry.id === where.id);
+        }
+        if (where.deviceId) {
+          results = results.filter((entry) => entry.id === where.deviceId);
+        }
+        return results.map(clone);
+      },
+      async update(params: any) {
+        const id = params.where?.id;
+        if (!id) {
+          throw new Error('UserDevice.update requires an id');
+        }
+        const record = userDevices.find((entry) => entry.id === id);
+        if (!record) {
+          throw new Error('User device not found');
+        }
+        const data = params.data ?? {};
+        if (data.deviceName !== undefined) {
+          record.deviceName = data.deviceName ?? null;
+        }
+        if (data.deviceType !== undefined) {
+          record.deviceType = data.deviceType ?? null;
+        }
+        if (data.platform !== undefined) {
+          record.platform = data.platform ?? null;
+        }
+        if (data.osVersion !== undefined) {
+          record.osVersion = data.osVersion ?? null;
+        }
+        if (data.appVersion !== undefined) {
+          record.appVersion = data.appVersion ?? null;
+        }
+        if (data.pushToken !== undefined) {
+          record.pushToken = data.pushToken ?? null;
+        }
+        if (data.trusted !== undefined) {
+          record.trusted = Boolean(data.trusted);
+        }
+        if (data.userAgent !== undefined) {
+          record.userAgent = data.userAgent ?? null;
+        }
+        if (data.lastSeenAt !== undefined) {
+          record.lastSeenAt = data.lastSeenAt ? new Date(data.lastSeenAt) : null;
+        }
+        record.updatedAt = now();
+        return clone(record);
+      },
+      async create(params: any) {
+        const data = params.data;
+        const timestamp = now();
+        const record: UserDeviceRecord = {
+          id: data.id ?? randomUUID(),
+          userId: data.userId,
+          fingerprint: data.fingerprint ?? null,
+          deviceName: data.deviceName ?? null,
+          deviceType: data.deviceType ?? null,
+          platform: data.platform ?? null,
+          osVersion: data.osVersion ?? null,
+          appVersion: data.appVersion ?? null,
+          pushToken: data.pushToken ?? null,
+          userAgent: data.userAgent ?? null,
+          trusted: data.trusted ?? true,
+          firstSeenAt: data.firstSeenAt ? new Date(data.firstSeenAt) : timestamp,
+          lastSeenAt: data.lastSeenAt ? new Date(data.lastSeenAt) : null,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        };
+        userDevices.push(record);
+        return clone(record);
+      },
+    },
+    userSession: {
+      async create(params: any) {
+        const data = params.data;
+        const timestamp = now();
+        const record: UserSessionRecord = {
+          id: data.id ?? randomUUID(),
+          userId: data.userId,
+          deviceId: data.deviceId ?? null,
+          sessionTokenHash: data.sessionTokenHash,
+          status: data.status ?? SessionStatus.ACTIVE,
+          ipAddress: data.ipAddress ?? null,
+          userAgent: data.userAgent ?? null,
+          location: data.location ?? null,
+          expiresAt: new Date(data.expiresAt),
+          lastSeenAt: data.lastSeenAt ? new Date(data.lastSeenAt) : null,
+          signedOutAt: data.signedOutAt ? new Date(data.signedOutAt) : null,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        };
+        userSessions.push(record);
+        return clone(record);
+      },
+      async update(params: any) {
+        const where = params.where ?? {};
+        if (!where.id) {
+          throw new Error('UserSession.update requires an id');
+        }
+        const record = userSessions.find((entry) => entry.id === where.id);
+        if (!record) {
+          throw new Error('User session not found');
+        }
+        const data = params.data ?? {};
+        if (data.sessionTokenHash !== undefined) {
+          record.sessionTokenHash = data.sessionTokenHash;
+        }
+        if (data.status !== undefined) {
+          record.status = data.status;
+        }
+        if (data.ipAddress !== undefined) {
+          record.ipAddress = data.ipAddress ?? null;
+        }
+        if (data.userAgent !== undefined) {
+          record.userAgent = data.userAgent ?? null;
+        }
+        if (data.location !== undefined) {
+          record.location = data.location ?? null;
+        }
+        if (data.expiresAt !== undefined) {
+          record.expiresAt = new Date(data.expiresAt);
+        }
+        if (data.lastSeenAt !== undefined) {
+          record.lastSeenAt = data.lastSeenAt ? new Date(data.lastSeenAt) : null;
+        }
+        if (data.signedOutAt !== undefined) {
+          record.signedOutAt = data.signedOutAt ? new Date(data.signedOutAt) : null;
+        }
+        if (data.deviceId !== undefined) {
+          record.deviceId = data.deviceId ?? null;
+        }
+        record.updatedAt = now();
+        return clone(record);
+      },
+      async findMany(params: any = {}) {
+        const where = params.where ?? {};
+        let results = [...userSessions];
+        if (where.userId) {
+          results = results.filter((entry) => entry.userId === where.userId);
+        }
+        if (where.deviceId) {
+          results = results.filter((entry) => entry.deviceId === where.deviceId);
+        }
+        if (where.status) {
+          results = results.filter((entry) => entry.status === where.status);
+        }
+        return results.map(clone);
+      },
+      async findUnique(params: any) {
+        const id = params?.where?.id;
+        if (!id) {
+          return null;
+        }
+        const record = userSessions.find((entry) => entry.id === id);
+        return record ? clone(record) : null;
+      },
+      async updateMany(params: any) {
+        const where = params.where ?? {};
+        const data = params.data ?? {};
+        let count = 0;
+        for (const record of userSessions) {
+          if (where.userId && record.userId !== where.userId) {
+            continue;
+          }
+          if (where.status && record.status !== where.status) {
+            continue;
+          }
+          if (data.status !== undefined) {
+            record.status = data.status;
+          }
+          if (data.signedOutAt !== undefined) {
+            record.signedOutAt = data.signedOutAt ? new Date(data.signedOutAt) : null;
+          }
+          if (data.lastSeenAt !== undefined) {
+            record.lastSeenAt = data.lastSeenAt ? new Date(data.lastSeenAt) : null;
+          }
+          if (data.updatedAt !== undefined) {
+            record.updatedAt = new Date(data.updatedAt);
+          } else {
+            record.updatedAt = now();
+          }
+          count += 1;
+        }
+        return { count };
+      },
+    },
     auditLog: {
       async create(params: any) {
         const data = params.data;
@@ -431,8 +927,16 @@ export function createInMemoryPrisma(): PrismaService {
       },
       async findMany(params: any = {}) {
         let results = [...auditLogs];
-        if (params.where?.event) {
-          results = results.filter((entry) => entry.event === params.where.event);
+        const eventFilter = params.where?.event;
+        if (eventFilter) {
+          if (typeof eventFilter === 'string') {
+            results = results.filter((entry) => entry.event === eventFilter);
+          } else if (typeof eventFilter === 'object' && eventFilter !== null) {
+            if (typeof eventFilter.contains === 'string') {
+              const needle = eventFilter.contains;
+              results = results.filter((entry) => entry.event.includes(needle));
+            }
+          }
         }
         if (params.orderBy?.createdAt) {
           const order = params.orderBy.createdAt as Order;

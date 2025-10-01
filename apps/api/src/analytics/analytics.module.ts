@@ -1,11 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 
 import { AuditModule } from '../audit/audit.module';
 
 import { AnalyticsService } from './analytics.service';
 
 @Module({
-  imports: [AuditModule],
+  imports: [forwardRef(() => AuditModule)],
   providers: [AnalyticsService],
   exports: [AnalyticsService],
 })

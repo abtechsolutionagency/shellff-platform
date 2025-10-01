@@ -102,6 +102,12 @@ enum SessionStatus {
   TERMINATED
 }
 
+enum OtpCodeType {
+  LOGIN
+  PASSWORD_RESET
+  VERIFICATION
+}
+
 model User {
   id                   String                @id @default(uuid())
   email                String                @unique
@@ -114,6 +120,7 @@ model User {
   creatorProfile       Creator?
   roles                UserRole[]
   refreshTokens        RefreshToken[]
+  otpCodes             OtpCode[]
   passwordResetTokens  PasswordResetToken[]
   sessions             UserSession[]
   devices              UserDevice[]
@@ -245,6 +252,25 @@ model PasswordResetToken {
   @@index([userId])
   @@index([expiresAt])
   @@index([userId, consumedAt])
+}
+
+model OtpCode {
+  id           String     @id @default(uuid())
+  userId       String
+  codeHash     String
+  type         OtpCodeType
+  expiresAt    DateTime
+  consumedAt   DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  createdByIp  String?
+  consumedByIp String?
+  userAgent    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, consumedAt])
+  @@index([expiresAt])
 }
 
 model UserDevice {

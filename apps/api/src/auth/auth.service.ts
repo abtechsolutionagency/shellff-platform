@@ -1,8 +1,9 @@
 import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
-import { Prisma, RefreshToken, RoleType, SessionStatus } from '@prisma/client';
+import { Prisma, RefreshToken, RoleType, SessionStatus, OtpCodeType } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
 
 import { AuditService } from '../audit/audit.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 import { LoginDto } from './dto/login.dto';
@@ -10,6 +11,7 @@ import { AuthSession } from './dto/session.dto';
 import { SignupDto } from './dto/signup.dto';
 import { hashPassword, verifyPassword } from './password.util';
 import { TokenService } from './token.service';
+import { OtpService } from './otp.service';
 import type { SessionMetadata } from './session-metadata';
 
 type UserWithRelations = Prisma.UserGetPayload<{
@@ -24,7 +26,9 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly analyticsService: AnalyticsService,
     private readonly tokenService: TokenService,
+    private readonly otpService: OtpService,
   ) {}
 
   async register(
@@ -85,7 +89,19 @@ export class AuthService {
     });
 
     const hydrated = await this.loadUserProfile(createdUser.id);
-    return this.issueSession(hydrated, metadata);
+    const session = await this.issueSession(hydrated, metadata);
+
+    await this.analyticsService.track(
+      'auth.signup.completed',
+      {
+        method: 'password',
+        sessionId: session.session.id,
+        deviceId: session.session.deviceId,
+      },
+      { userId: createdUser.id, target: session.session.id },
+    );
+
+    return session;
   }
 
   async login(
@@ -103,7 +119,9 @@ export class AuthService {
       },
     });
 
-    if (!user || !verifyPassword(dto.password, user.passwordHash)) {
+    const passwordValid = user && verifyPassword(dto.password, user.passwordHash);
+
+    if (!user || !passwordValid) {
       await this.auditService.recordEvent({
         actorType: 'auth',
         event: 'auth.login.denied',
@@ -113,6 +131,12 @@ export class AuthService {
           email: normalizedEmail,
         },
       });
+
+      await this.analyticsService.track(
+        'auth.login.denied',
+        { reason: 'invalid_credentials', email: normalizedEmail },
+        { target: normalizedEmail },
+      );
 
       throw new UnauthorizedException('Invalid email or password');
     }
@@ -130,7 +154,251 @@ export class AuthService {
       },
     });
 
+    await this.analyticsService.track(
+      'auth.login.success',
+      {
+        method: 'password',
+        sessionId: session.session.id,
+        deviceId: session.session.deviceId,
+      },
+      { userId: user.id, target: session.session.id },
+    );
+
     return session;
+  }
+
+  async requestLoginOtp(
+    email: string,
+    metadata: SessionMetadata = {},
+  ): Promise<{ delivered: boolean; expiresAt?: string; testCode?: string | null }> {
+    const normalizedEmail = email.toLowerCase();
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (!user) {
+      await this.auditService.recordEvent({
+        actorType: 'auth',
+        event: 'auth.otp.login.request.unknown_user',
+        target: normalizedEmail,
+        metadata: { email: normalizedEmail },
+      });
+      await this.analyticsService.track(
+        'auth.otp.login.request.unknown',
+        { email: normalizedEmail },
+        { target: normalizedEmail },
+      );
+      return { delivered: true };
+    }
+
+    const issued = await this.otpService.issue(user.id, OtpCodeType.LOGIN, metadata);
+
+    await this.auditService.recordEvent({
+      actorUserId: user.id,
+      actorType: 'user',
+      event: 'auth.otp.login.request',
+      target: user.id,
+      metadata: {
+        email: user.email,
+        expiresAt: issued.expiresAt.toISOString(),
+      },
+    });
+
+    await this.analyticsService.track(
+      'auth.otp.login.requested',
+      {
+        email: user.email,
+        expiresAt: issued.expiresAt.toISOString(),
+      },
+      { userId: user.id, target: user.id },
+    );
+
+    return {
+      delivered: true,
+      expiresAt: issued.expiresAt.toISOString(),
+      testCode: this.revealOtpForTesting(issued.code),
+    };
+  }
+
+  async verifyLoginOtp(
+    email: string,
+    code: string,
+    metadata: SessionMetadata = {},
+  ): Promise<AuthSession> {
+    const normalizedEmail = email.toLowerCase();
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      include: {
+        roles: {
+          include: { role: true },
+        },
+        creatorProfile: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid or expired OTP');
+    }
+
+    const valid = await this.otpService.verify(
+      user.id,
+      OtpCodeType.LOGIN,
+      code,
+      metadata,
+    );
+
+    if (!valid) {
+      throw new UnauthorizedException('Invalid or expired OTP');
+    }
+
+    const session = await this.issueSession(user, metadata);
+
+    await this.auditService.recordEvent({
+      actorUserId: user.id,
+      actorType: 'user',
+      event: 'auth.otp.login.verify',
+      target: user.id,
+      metadata: {
+        email: user.email,
+        sessionId: session.session.id,
+      },
+    });
+
+    await this.analyticsService.track(
+      'auth.otp.login.verified',
+      {
+        email: user.email,
+        sessionId: session.session.id,
+      },
+      { userId: user.id, target: session.session.id },
+    );
+
+    return session;
+  }
+
+  async requestPasswordReset(
+    email: string,
+    metadata: SessionMetadata = {},
+  ): Promise<{ delivered: boolean; expiresAt?: string; testCode?: string | null }> {
+    const normalizedEmail = email.toLowerCase();
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (!user) {
+      await this.auditService.recordEvent({
+        actorType: 'auth',
+        event: 'auth.password.reset.request.unknown_user',
+        target: normalizedEmail,
+        metadata: { email: normalizedEmail },
+      });
+      await this.analyticsService.track(
+        'auth.password.reset.request.unknown',
+        { email: normalizedEmail },
+        { target: normalizedEmail },
+      );
+      return { delivered: true };
+    }
+
+    const issued = await this.otpService.issue(
+      user.id,
+      OtpCodeType.PASSWORD_RESET,
+      metadata,
+    );
+
+    await this.auditService.recordEvent({
+      actorUserId: user.id,
+      actorType: 'user',
+      event: 'auth.password.reset.request',
+      target: user.id,
+      metadata: {
+        email: user.email,
+        expiresAt: issued.expiresAt.toISOString(),
+      },
+    });
+
+    await this.analyticsService.track(
+      'auth.password.reset.requested',
+      {
+        email: user.email,
+        expiresAt: issued.expiresAt.toISOString(),
+      },
+      { userId: user.id, target: user.id },
+    );
+
+    return {
+      delivered: true,
+      expiresAt: issued.expiresAt.toISOString(),
+      testCode: this.revealOtpForTesting(issued.code),
+    };
+  }
+
+  async confirmPasswordReset(
+    email: string,
+    code: string,
+    newPassword: string,
+    metadata: SessionMetadata = {},
+  ): Promise<void> {
+    const normalizedEmail = email.toLowerCase();
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid reset request');
+    }
+
+    const valid = await this.otpService.verify(
+      user.id,
+      OtpCodeType.PASSWORD_RESET,
+      code,
+      metadata,
+    );
+
+    if (!valid) {
+      throw new UnauthorizedException('Invalid reset request');
+    }
+
+    const passwordHash = hashPassword(newPassword);
+    const now = new Date();
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
+      });
+
+      await tx.refreshToken.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: now },
+      });
+
+      await tx.userSession.updateMany({
+        where: { userId: user.id, status: SessionStatus.ACTIVE },
+        data: {
+          status: SessionStatus.TERMINATED,
+          signedOutAt: now,
+          lastSeenAt: now,
+          updatedAt: now,
+        },
+      });
+    });
+
+    await this.auditService.recordEvent({
+      actorUserId: user.id,
+      actorType: 'user',
+      event: 'auth.password.reset.complete',
+      target: user.id,
+      metadata: {
+        email: user.email,
+      },
+    });
+
+    await this.analyticsService.track(
+      'auth.password.reset.completed',
+      { email: user.email },
+      { userId: user.id, target: user.id },
+    );
   }
 
   async refresh(
@@ -153,6 +421,15 @@ export class AuthService {
         sessionId: session.session.id,
       },
     });
+
+    await this.analyticsService.track(
+      'auth.session.refreshed',
+      {
+        sessionId: session.session.id,
+        deviceId: session.session.deviceId,
+      },
+      { userId: user.id, target: session.session.id },
+    );
 
     return session;
   }
@@ -192,6 +469,15 @@ export class AuthService {
         sessionId: record.sessionId ?? null,
       },
     });
+
+    await this.analyticsService.track(
+      'auth.logout',
+      {
+        sessionId: record.sessionId ?? null,
+        refreshTokenId: record.id,
+      },
+      { userId: payload.sub, target: record.sessionId ?? record.id },
+    );
   }
 
   private async issueSession(
@@ -287,7 +573,7 @@ export class AuthService {
 
     const resolvedPublicId = publicId ?? user.publicId ?? null;
 
-    return {
+    const response: AuthSession = {
       user: {
         id: user.id,
         publicId: resolvedPublicId,
@@ -317,6 +603,18 @@ export class AuthService {
         sessionId: sessionRecord.id,
       },
     };
+
+    await this.analyticsService.track(
+      'auth.session.issued',
+      {
+        sessionId: sessionRecord.id,
+        deviceId,
+        expiresAt: sessionRecord.expiresAt.toISOString(),
+      },
+      { userId: user.id, target: sessionRecord.id },
+    );
+
+    return response;
   }
 
   private async loadUserProfile(userId: string): Promise<UserWithRelations> {
@@ -329,6 +627,10 @@ export class AuthService {
         creatorProfile: true,
       },
     });
+  }
+
+  private revealOtpForTesting(code: string): string | null {
+    return process.env.NODE_ENV === 'test' ? code : null;
   }
 
   private hashToken(token: string): string {
@@ -434,7 +736,7 @@ export class AuthService {
       });
     }
 
-    if (!device && metadata.userAgent) {
+    if (!device && !fingerprint && metadata.userAgent) {
       device = await tx.userDevice.findFirst({
         where: { userId, userAgent: metadata.userAgent },
       });
@@ -456,6 +758,7 @@ export class AuthService {
           appVersion: details.appVersion ?? undefined,
           pushToken: details.pushToken ?? undefined,
           trusted,
+          fingerprint: fingerprint ?? undefined,
           userAgent: metadata.userAgent ?? undefined,
           lastSeenAt: new Date(),
         },
