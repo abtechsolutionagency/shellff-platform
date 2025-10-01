@@ -37,6 +37,7 @@ CREATE TABLE "UserDevice" (
   "osVersion" TEXT,
   "appVersion" TEXT,
   "pushToken" TEXT,
+  "userAgent" TEXT,
   "trusted" BOOLEAN NOT NULL DEFAULT TRUE,
   "firstSeenAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   "lastSeenAt" TIMESTAMPTZ,
@@ -48,6 +49,7 @@ CREATE TABLE "UserDevice" (
 CREATE INDEX "UserDevice_userId_idx" ON "UserDevice"("userId");
 CREATE INDEX "UserDevice_fingerprint_idx" ON "UserDevice"("fingerprint");
 CREATE INDEX "UserDevice_pushToken_idx" ON "UserDevice"("pushToken");
+CREATE INDEX "UserDevice_userId_userAgent_idx" ON "UserDevice"("userId", "userAgent");
 CREATE INDEX "UserDevice_userId_trusted_idx" ON "UserDevice"("userId", "trusted");
 
 CREATE TABLE "UserSession" (

@@ -257,6 +257,7 @@ model UserDevice {
   osVersion   String?
   appVersion  String?
   pushToken   String?
+  userAgent   String?
   trusted     Boolean   @default(true)
   firstSeenAt DateTime  @default(now())
   lastSeenAt  DateTime?
