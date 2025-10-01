@@ -45,16 +45,15 @@ async function refreshSessionCookie(
   if (!existingToken) {
     return response;
   }
+  const token = existingToken as ExtendedJWT;
   const sessionMaxAge = authOptions.session?.maxAge ?? 30 * 24 * 60 * 60;
   const tokenPayload: ExtendedJWT = {
-    ...(existingToken as ExtendedJWT),
+    ...token,
     userType: updates.userType,
     sciId: updates.sciId ?? null,
     name: updates.username ?? existingToken.name ?? undefined,
-    firstName:
-      updates.firstName ?? (existingToken as ExtendedJWT).firstName ?? null,
-    lastName:
-      updates.lastName ?? (existingToken as ExtendedJWT).lastName ?? null,
+    firstName: updates.firstName ?? token.firstName ?? null,
+    lastName: updates.lastName ?? token.lastName ?? null,
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + sessionMaxAge,
   };
