@@ -26,6 +26,14 @@
 - Complete OTP verification from the web UI while observing API logs to confirm the same session is maintained.
 - Execute password reset and logout flows from both web and API clients and verify device session continuity and revocation behave consistently.
 
+# Slice 2 — Profiles & Settings
+
+## Password and Role Management
+- Exercise the settings password form with a valid current password and a strong replacement to confirm the `/api/profile/password` endpoint persists the hash, the UI surfaces the success alert, and follow-up logins require the new secret.
+- Attempt the password change with an invalid current password or mismatched confirmation and ensure the UI shows the failure alert while the API responds with the appropriate 400 error payload.
+- Switch from Listener to Creator via the role-switch modal and verify `/api/profile/role-switch` rotates the session cookie, updates the JWT payload, and the dashboard redirect lands on the Creator space without requiring a manual refresh.
+- Force an error scenario for role switching (e.g., backend restriction) and confirm the modal surfaces the destructive alert, the toast captures the failure, and the session cookie remains untouched.
+
 # Slice 3 — Catalog & Search
 
 ## Ingestion & Index Refresh Orchestration
@@ -42,11 +50,3 @@
 - Run a search with personalization toggled on for a listener following creators and genres present in the results; confirm releases/tracks contain the personalization metadata (reasons, matched genres, boost multiplier) and that `catalog.search.personalized` analytics fire with matched-signal counts.
 - Simulate missing listener profile rows and validate the API falls back gracefully, emitting `catalog.search.personalization_unavailable` and returning non-personalized results without errors.
 - Confirm audit events capture personalization flags, region, and signal counts for both personalized and non-personalized searches.
-
-# Slice 2 — Profiles & Settings
-
-## Password and Role Management
-- Exercise the settings password form with a valid current password and a strong replacement to confirm the `/api/profile/password` endpoint persists the hash, the UI surfaces the success alert, and follow-up logins require the new secret.
-- Attempt the password change with an invalid current password or mismatched confirmation and ensure the UI shows the failure alert while the API responds with the appropriate 400 error payload.
-- Switch from Listener to Creator via the role-switch modal and verify `/api/profile/role-switch` rotates the session cookie, updates the JWT payload, and the dashboard redirect lands on the Creator space without requiring a manual refresh.
-- Force an error scenario for role switching (e.g., backend restriction) and confirm the modal surfaces the destructive alert, the toast captures the failure, and the session cookie remains untouched.
