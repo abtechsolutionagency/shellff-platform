@@ -12,7 +12,8 @@
     "test:pwa": "node ./scripts/run-vitest.mjs run --config vitest.config.pwa.ts",
     "generate:fixtures": "tsx ./scripts/generate-fixtures.ts",
     "format": "prettier --check .",
-    "vercel-build": "next build"
+    "vercel-build": "next build",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "tsx --require dotenv/config scripts/seed.ts"
