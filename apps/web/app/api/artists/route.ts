@@ -14,60 +14,51 @@ export async function GET(request: NextRequest) {
 
     const offset = (page - 1) * limit;
 
-    const where: Prisma.ArtistWhereInput = {};
-    let orderBy: Prisma.ArtistOrderByWithRelationInput | Prisma.ArtistOrderByWithRelationInput[] = [{ monthlyListeners: "desc" }, { followerCount: "desc" }];
+    const where: Prisma.UserWhereInput = {};
+    let orderBy: Prisma.UserOrderByWithRelationInput | Prisma.UserOrderByWithRelationInput[] = { createdAt: "desc" };
 
     // Search filter
     if (search) {
-      where.name = { contains: search, mode: "insensitive" };
+      where.displayName = { contains: search, mode: "insensitive" };
     }
 
-    // Verified filter
-    if (verified === "true") {
-      where.verified = true;
-    }
+    // Filter for creators only
+    where.primaryRole = 'CREATOR';
+
+    // Verified filter (not available in User model)
+    // if (verified === "true") {
+    //   where.verified = true;
+    // }
 
     // Sorting
     switch (sort) {
       case "alphabetical":
-        orderBy = { name: "asc" };
+        orderBy = { displayName: "asc" };
         break;
       case "latest":
         orderBy = { createdAt: "desc" };
         break;
       case "popular":
       default:
-        orderBy = [{ monthlyListeners: "desc" }, { followerCount: "desc" }];
+        orderBy = { createdAt: "desc" }; // Using createdAt as popularity proxy
         break;
     }
 
     const [artists, totalCount] = await Promise.all([
-      prisma.artist.findMany({
+      prisma.user.findMany({
         where,
         skip: offset,
         take: limit,
         orderBy,
         include: {
-          artistTags: {
-            include: {
-              tag: {
-                select: {
-                  id: true,
-                  name: true,
-                  category: true
-                }
-              }
-            }
-          },
           _count: {
             select: {
-              albums: true,
-              tracks: true
+              releases: true // Using releases instead of createdReleases
             }
           }
         }
       }),
-      prisma.artist.count({ where })
+      prisma.user.count({ where })
     ]);
 
     const totalPages = Math.ceil(totalCount / limit);
@@ -75,16 +66,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       artists: artists.map((artist: any) => ({
         id: artist.id,
-        name: artist.name,
-        bio: artist.bio,
-        avatar: artist.avatar,
-        verified: artist.verified,
-        followerCount: artist.followerCount,
-        monthlyListeners: artist.monthlyListeners,
-        albumCount: artist._count.albums,
-        trackCount: artist._count.tracks,
+        name: artist.displayName, // Using displayName as name
+        bio: '', // Bio not available in User model
+        avatar: '', // Avatar not available in User model
+        verified: false, // Verified not available in User model
+        followerCount: 0, // Follower count not available
+        monthlyListeners: 0, // Monthly listeners not available
+        albumCount: artist._count.releases, // Using releases as albumCount
+        trackCount: 0, // Track count not available
         createdAt: artist.createdAt,
-        tags: artist.artistTags.map((at: any) => at.tag)
+        tags: [] // Tags not available in User model
       })),
       pagination: {
         page,

@@ -1,37 +1,16 @@
-
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { getAdminUserOrThrow } from '@/lib/admin-auth';
+import { requireAdminAuth } from '@/lib/admin-auth';
 
-export async function PUT(
+export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    const adminUser = await getAdminUserOrThrow();
+  // Check admin authentication
+  const authError = await requireAdminAuth();
+  if (authError) return authError;
 
-    const body = await request.json();
-    const { notes } = body;
-
-    const fraudLog = await prisma.fraudDetectionLog.update({
-      where: { id: params.id },
-      data: {
-        resolved: true,
-        resolvedAt: new Date(),
-        resolvedBy: adminUser.id,
-        notes,
-      },
-    });
-
-    return NextResponse.json(fraudLog);
-  } catch (error) {
-    console.error('Fraud log resolution error:', error);
-    if (error instanceof Error && error.message === 'Admin access required') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    return NextResponse.json(
-      { error: 'Failed to resolve fraud log' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(
+    { error: 'Fraud logs functionality not available in current schema' },
+    { status: 501 }
+  );
 }

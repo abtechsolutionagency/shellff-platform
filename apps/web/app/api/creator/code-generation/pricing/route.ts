@@ -17,10 +17,10 @@ export async function GET(request: NextRequest) {
     // Get user and verify creator status
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { userType: true, userId: true }
+      select: { primaryRole: true, id: true }
     });
 
-    if (!user || user.userType !== 'CREATOR') {
+    if (!user || user.primaryRole !== 'CREATOR') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -71,10 +71,10 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { userType: true, userId: true }
+      select: { primaryRole: true, id: true }
     });
 
-    if (!user || user.userType !== 'CREATOR') {
+    if (!user || user.primaryRole !== 'CREATOR') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -90,13 +90,12 @@ export async function POST(request: NextRequest) {
     const release = await prisma.release.findFirst({
       where: {
         id: releaseId,
-        creatorId: user.userId,
-        physicalUnlockEnabled: true
+        creatorId: user.id
       }
     });
 
     if (!release) {
-      return NextResponse.json({ error: 'Release not found or unlock codes not enabled' }, { status: 404 });
+      return NextResponse.json({ error: 'Release not found' }, { status: 404 });
     }
 
     // Calculate pricing for validation

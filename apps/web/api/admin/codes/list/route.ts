@@ -61,18 +61,14 @@ export async function GET(request: NextRequest) {
         },
         creator: {
           select: {
-            userId: true,
-            firstName: true,
-            lastName: true,
-            username: true
+            id: true,
+            displayName: true
           }
         },
         redeemer: {
           select: {
-            userId: true,
-            firstName: true,
-            lastName: true,
-            username: true
+            id: true,
+            displayName: true
           }
         }
       },
@@ -88,14 +84,10 @@ export async function GET(request: NextRequest) {
       releaseId: code.releaseId,
       releaseTitle: code.release?.title || 'Unknown Release',
       creatorId: code.creatorId,
-      creatorName: code.creator?.firstName && code.creator?.lastName 
-        ? `${code.creator.firstName} ${code.creator.lastName}`
-        : code.creator?.username || 'Unknown Creator',
+      creatorName: code.creator?.displayName || 'Unknown Creator',
       status: code.status,
-      redeemedBy: code.redeemer?.userId,
-      redeemedByName: code.redeemer?.firstName && code.redeemer?.lastName 
-        ? `${code.redeemer.firstName} ${code.redeemer.lastName}`
-        : code.redeemer?.username,
+      redeemedBy: code.redeemer?.id,
+      redeemedByName: code.redeemer?.displayName,
       redeemedAt: code.redeemedAt?.toISOString(),
       batchId: code.batchId,
       costPerCode: code.costPerCode ? Number(code.costPerCode) : null,

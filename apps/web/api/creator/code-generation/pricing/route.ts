@@ -17,10 +17,10 @@ export async function GET(request: NextRequest) {
     // Get user and verify creator status
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { userType: true, userId: true, id: true }
+      select: { primaryRole: true, id: true }
     });
 
-    if (!user || user.userType !== 'CREATOR') {
+    if (!user || user.primaryRole !== 'CREATOR') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -85,10 +85,10 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { userType: true, userId: true, id: true }
+      select: { primaryRole: true, id: true }
     });
 
-    if (!user || user.userType !== 'CREATOR') {
+    if (!user || user.primaryRole !== 'CREATOR') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -104,8 +104,7 @@ export async function POST(request: NextRequest) {
     const release = await prisma.release.findFirst({
       where: {
         id: releaseId,
-        creatorId: user.userId,
-        physicalUnlockEnabled: true
+        creatorId: user.id,
       }
     });
 

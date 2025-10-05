@@ -10,20 +10,14 @@ export async function GET(request: NextRequest) {
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
     // Get total code statistics
-    const [totalCodes, totalRedeemed, totalRevenue] = await Promise.all([
+    const [totalCodes, totalRedeemed] = await Promise.all([
       // Total codes generated
       prisma.unlockCode.count(),
       
       // Total codes redeemed
       prisma.unlockCode.count({
-        where: { status: 'redeemed' }
+        where: { status: 'REDEEMED' }
       }),
-      
-      // Total revenue from code generation
-      prisma.codePaymentTransaction.aggregate({
-        where: { confirmationStatus: 'confirmed' },
-        _sum: { amountUsd: true }
-      })
     ]);
 
     // Get active creators (creators who have generated codes)
@@ -50,31 +44,11 @@ export async function GET(request: NextRequest) {
       })
     ]);
 
-    const [currentMonthRevenue, previousMonthRevenue] = await Promise.all([
-      prisma.codePaymentTransaction.aggregate({
-        where: { 
-          createdAt: { gte: thirtyDaysAgo },
-          confirmationStatus: 'confirmed'
-        },
-        _sum: { amountUsd: true }
-      }),
-      prisma.codePaymentTransaction.aggregate({
-        where: { 
-          createdAt: { 
-            gte: sixtyDaysAgo,
-            lt: thirtyDaysAgo
-          },
-          confirmationStatus: 'confirmed'
-        },
-        _sum: { amountUsd: true }
-      })
-    ]);
-
     const [currentMonthRedemptions, previousMonthRedemptions] = await Promise.all([
       prisma.unlockCode.count({
         where: { 
           redeemedAt: { gte: thirtyDaysAgo },
-          status: 'redeemed'
+          status: 'REDEEMED'
         }
       }),
       prisma.unlockCode.count({
@@ -83,7 +57,7 @@ export async function GET(request: NextRequest) {
             gte: sixtyDaysAgo,
             lt: thirtyDaysAgo
           },
-          status: 'redeemed'
+          status: 'REDEEMED'
         }
       })
     ]);
@@ -92,12 +66,6 @@ export async function GET(request: NextRequest) {
     const codesGrowth = previousMonthCodes > 0 
       ? ((currentMonthCodes - previousMonthCodes) / previousMonthCodes) * 100
       : currentMonthCodes > 0 ? 100 : 0;
-
-    const currentRevenueNum = Number(currentMonthRevenue._sum.amountUsd || 0);
-    const previousRevenueNum = Number(previousMonthRevenue._sum.amountUsd || 0);
-    const revenueGrowth = previousRevenueNum > 0
-      ? ((currentRevenueNum - previousRevenueNum) / previousRevenueNum) * 100
-      : currentRevenueNum > 0 ? 100 : 0;
 
     const redemptionsGrowth = previousMonthRedemptions > 0
       ? ((currentMonthRedemptions - previousMonthRedemptions) / previousMonthRedemptions) * 100
@@ -109,7 +77,7 @@ export async function GET(request: NextRequest) {
       const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
       const nextDate = new Date(date.getTime() + 24 * 60 * 60 * 1000);
       
-      const [codesGenerated, codesRedeemed, dayRevenue] = await Promise.all([
+      const [codesGenerated, codesRedeemed] = await Promise.all([
         prisma.unlockCode.count({
           where: {
             createdAt: {
@@ -124,18 +92,8 @@ export async function GET(request: NextRequest) {
               gte: date,
               lt: nextDate
             },
-            status: 'redeemed'
+            status: 'REDEEMED'
           }
-        }),
-        prisma.codePaymentTransaction.aggregate({
-          where: {
-            createdAt: {
-              gte: date,
-              lt: nextDate
-            },
-            confirmationStatus: 'confirmed'
-          },
-          _sum: { amountUsd: true }
         })
       ]);
 
@@ -143,15 +101,15 @@ export async function GET(request: NextRequest) {
         date: date.toISOString().split('T')[0],
         codesGenerated,
         codesRedeemed,
-        revenue: dayRevenue._sum.amountUsd || 0
+        revenue: 0 // Revenue tracking not available
       });
     }
 
     // Get redemption status distribution
     const [unusedCount, redeemedCount, invalidCount] = await Promise.all([
-      prisma.unlockCode.count({ where: { status: 'unused' } }),
-      prisma.unlockCode.count({ where: { status: 'redeemed' } }),
-      prisma.unlockCode.count({ where: { status: 'invalid' } })
+      prisma.unlockCode.count({ where: { status: 'UNUSED' } }),
+      prisma.unlockCode.count({ where: { status: 'REDEEMED' } }),
+      prisma.unlockCode.count({ where: { status: 'REVOKED' } })
     ]);
 
     const redemptionsByStatus = [
@@ -163,21 +121,11 @@ export async function GET(request: NextRequest) {
     // Get top creators by code generation
     const topCreators = await prisma.user.findMany({
       select: {
-        userId: true,
-        firstName: true,
-        lastName: true,
-        username: true,
+        id: true,
+        displayName: true,
         _count: {
           select: {
             createdUnlockCodes: true
-          }
-        },
-        codePaymentTransactions: {
-          select: {
-            amountUsd: true
-          },
-          where: {
-            confirmationStatus: 'confirmed'
           }
         }
       },
@@ -195,22 +143,20 @@ export async function GET(request: NextRequest) {
     });
 
     const formattedTopCreators = topCreators.map((creator: any) => ({
-      id: creator.userId,
-      name: creator.firstName && creator.lastName
-        ? `${creator.firstName} ${creator.lastName}`
-        : creator.username,
+      id: creator.id,
+      name: creator.displayName,
       codesGenerated: creator._count.createdUnlockCodes,
-      revenue: creator.codePaymentTransactions.reduce((sum: number, tx: any) => sum + Number(tx.amountUsd), 0)
+      revenue: 0 // Revenue tracking not available
     }));
 
     return NextResponse.json({
       totalCodes,
       totalRedeemed,
-      totalRevenue: Number(totalRevenue._sum.amountUsd || 0),
+      totalRevenue: 0, // Revenue tracking not available in current schema
       activeCreators,
       monthlyGrowth: {
         codes: Math.round(codesGrowth),
-        revenue: Math.round(revenueGrowth),
+        revenue: 0, // Revenue tracking not available
         redemptions: Math.round(redemptionsGrowth)
       },
       recentActivity,

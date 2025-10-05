@@ -25,31 +25,10 @@ export async function GET(request: NextRequest) {
     // Search creators by name, username, or SCI ID
     const creators = await prisma.user.findMany({
       where: {
-        userType: 'CREATOR',
-        sciId: {
-          not: null,
-        },
+        primaryRole: 'CREATOR',
         OR: [
           {
-            username: {
-              contains: query,
-              mode: 'insensitive',
-            },
-          },
-          {
-            firstName: {
-              contains: query,
-              mode: 'insensitive',
-            },
-          },
-          {
-            lastName: {
-              contains: query,
-              mode: 'insensitive',
-            },
-          },
-          {
-            sciId: {
+            displayName: {
               contains: query,
               mode: 'insensitive',
             },
@@ -62,17 +41,12 @@ export async function GET(request: NextRequest) {
       },
       select: {
         id: true,
-        username: true,
-        firstName: true,
-        lastName: true,
-        sciId: true,
-        avatar: true,
-        isVerified: true,
+        displayName: true,
+        publicId: true,
       },
       take: limit,
       orderBy: [
-        { isVerified: 'desc' },
-        { username: 'asc' },
+        { displayName: 'asc' },
       ],
     });
 

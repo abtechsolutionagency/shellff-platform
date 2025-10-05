@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAdminAuth } from '@/lib/admin-auth';
+import { UnlockCodeStatus } from '@prisma/client';
 
 export async function POST(request: NextRequest) {
   // Check admin authentication
@@ -23,14 +24,14 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case 'mark_invalid':
-        updateData = { status: 'invalid' };
+        updateData = { status: 'REVOKED' };
         break;
       case 'mark_unused':
-        updateData = { status: 'unused' };
+        updateData = { status: 'UNUSED' };
         break;
       case 'revoke':
         updateData = { 
-          status: 'invalid',
+          status: 'REVOKED',
           redeemedAt: null,
           redeemedBy: null
         };
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
       case 'delete':
         // For delete, we'll actually mark as invalid rather than delete from DB
         // to preserve audit trail
-        updateData = { status: 'invalid' };
+        updateData = { status: 'REVOKED' };
         break;
       default:
         return NextResponse.json(
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
     // Only allow operations on codes that haven't been redeemed (unless it's restore)
     const whereClause = action === 'mark_unused' 
       ? { id: { in: codeIds } } // For restore, allow any status
-      : { id: { in: codeIds }, status: { in: ['unused', 'invalid'] } }; // For others, exclude redeemed
+      : { id: { in: codeIds }, status: { in: [UnlockCodeStatus.UNUSED, UnlockCodeStatus.REVOKED] } }; // For others, exclude redeemed
 
     // Perform the bulk update
     const result = await prisma.unlockCode.updateMany({

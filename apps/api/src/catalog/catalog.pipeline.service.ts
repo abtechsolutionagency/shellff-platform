@@ -60,7 +60,6 @@ export interface CatalogReleaseSearchResult {
   creator: {
     id: string;
     displayName: string;
-    publicId: string;
   };
   createdAt: Date;
   updatedAt: Date;
@@ -206,7 +205,12 @@ export class CatalogPipelineService {
       take: releaseTake,
       orderBy: { createdAt: 'desc' },
       include: {
-        creator: { select: { id: true, displayName: true, publicId: true } },
+        creator: { 
+          select: { 
+            id: true, 
+            displayName: true
+          } 
+        },
       },
     });
 
@@ -283,7 +287,10 @@ export class CatalogPipelineService {
         description: release.description ?? null,
         coverArt: release.coverArt ?? null,
         releaseType: release.releaseType,
-        creator: release.creator,
+        creator: {
+          id: release.creator.id,
+          displayName: release.creator.displayName,
+        },
         createdAt: release.createdAt,
         updatedAt: release.updatedAt,
         score: compositeScore,
@@ -304,7 +311,7 @@ export class CatalogPipelineService {
             : listenerProfile
             ? {
                 applied: false,
-                reasons: [],
+                reasons: [] as string[],
                 matchedGenres,
                 boostMultiplier: personalizationBoost,
               }
@@ -377,7 +384,7 @@ export class CatalogPipelineService {
             : listenerProfile
             ? {
                 applied: false,
-                reasons: [],
+                reasons: [] as string[],
                 matchedGenres,
                 boostMultiplier: personalizationBoost,
               }

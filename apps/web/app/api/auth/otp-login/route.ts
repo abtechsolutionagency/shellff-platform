@@ -97,24 +97,23 @@ export async function POST(req: NextRequest) {
         );
       }
       
-      // Update last login
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { 
-          lastLoginAt: new Date(),
-          failedLoginAttempts: 0,
-          lockedUntil: null
-        }
-      });
+      // Login tracking fields not available in current schema
+      // await prisma.user.update({
+      //   where: { id: user.id },
+      //   data: { 
+      //     lastLoginAt: new Date(),
+      //     failedLoginAttempts: 0,
+      //     lockedUntil: null
+      //   }
+      // });
       
       return NextResponse.json({
         message: "Login successful",
         user: {
           id: user.id,
           email: user.email,
-          username: user.username,
-          sciId: user.sciId,
-          userType: user.userType
+          displayName: user.displayName,
+          primaryRole: user.primaryRole
         }
       });
       

@@ -23,7 +23,7 @@ export class AuditService {
         actorType: payload.actorType,
         event: payload.event,
         target: payload.target ?? null,
-        metadata: payload.metadata,
+        metadata: payload.metadata as Prisma.InputJsonValue,
         requestId: payload.requestId ?? null,
       },
     });

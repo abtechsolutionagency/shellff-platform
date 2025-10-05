@@ -1,522 +1,55 @@
+// Prisma schema for Shellff Slice 0 foundation
+// Defines core identity, roles, audit logging, and feature flag structures.
 
 generator client {
-    provider = "prisma-client-js"
-    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
-
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "postgresql"
-    url      = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-enum UserType {
+enum RoleType {
   LISTENER
   CREATOR
   ADMIN
+  MODERATOR
 }
 
-model User {
-  id               String    @id @default(cuid())
-  userId           String    @unique // User ID for all users
-  publicId         String?   @unique
-  sciId            String?   @unique // Shellff Creator ID (only for creators)
-  username         String    @unique
-  email            String    @unique
-  passwordHash     String?   // Made optional for OTP-only accounts
-  firstName        String?
-  lastName         String?
-  userType         UserType  @default(LISTENER)
-  avatar           String?
-  bio              String?
-  isVerified       Boolean   @default(false)
-  emailVerified    DateTime?
-  image            String?
-  profilePicture   String?   // Cloud storage path for profile picture
-  cloudStoragePath String?   // General cloud storage reference
-  settings         Json      @default("{}")
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  lastLoginAt      DateTime?
-  failedLoginAttempts Int    @default(0)
-  lockedUntil      DateTime?
-  
-  // NextAuth fields
-  accounts         Account[]
-  sessions         Session[]
-  
-  // OTP and verification
-  otpCodes         OtpCode[]
-  passwordResetTokens PasswordResetToken[]
-  
-  // Profile and settings
-  userSettings     UserSettings?
-  media            Media[]
-  
-  // Music interactions
-  purchases        Purchase[]
-  trackLikes       TrackLike[]
-  playlists        Playlist[]
-  playEvents       PlayEvent[]
-  listeningHistory ListeningHistory[]
-  
-  // Wallet & Payment relations
-  wallets          Wallet[]
-  voucherRedemptions VoucherRedemption[]
-
-  // Slice 7: Creator Upload & Royalty Engine relations
-  releases         Release[]
-  trackContributions TrackContributor[]
-  royaltySplits    RoyaltySplit[]
-  streamingStats   StreamingStats[]
-  dailyS2EStats    DailyS2EStats[]
-
-  // Code Slice: Physical Album Unlock System relations
-  createdUnlockCodes UnlockCode[] @relation("CreatorUnlockCodes")
-  redeemedUnlockCodes UnlockCode[] @relation("RedeemerUnlockCodes")
-  releaseAccesses   ReleaseAccess[]
-  codeRedemptionLogs CodeRedemptionLog[]
-  codePaymentTransactions CodePaymentTransaction[]
-
-  // Discount System relations
-  discountUsages      DiscountUsage[]
-
-  // Code Slice 9: Group Code Packs relations
-  createdGroupPacks   GroupCodePack[] @relation("CreatorGroupPacks")
-  packMemberships     PackMember[] @relation("PackMemberships")
-  packInvitations     PackMember[] @relation("PackInvitations")
-
-  @@map("users")
+enum FeatureFlagRolloutType {
+  STATIC
+  PERCENTAGE
+  TARGETED
 }
 
-model OtpCode {
-  id        String   @id @default(cuid())
-  userId    String
-  code      String   @db.Char(6)
-  type      String   // "LOGIN" | "VERIFICATION" | "PASSWORD_RESET"
-  expiresAt DateTime
-  used      Boolean  @default(false)
-  createdAt DateTime @default(now())
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@map("otp_codes")
+enum FeatureFlagEnvironment {
+  LOCAL
+  STAGING
+  PRODUCTION
 }
 
-model PasswordResetToken {
-  id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
-  expiresAt DateTime
-  used      Boolean  @default(false)
-  createdAt DateTime @default(now())
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@map("password_reset_tokens")
+enum ReleaseType {
+  DIGITAL
+  PHYSICAL
+  HYBRID
 }
 
-model RefreshToken {
-  id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  
-  @@map("refresh_tokens")
+enum UnlockCodeStatus {
+  UNUSED
+  REDEEMED
+  REVOKED
 }
 
-model RateLimitAttempt {
-  id        String   @id @default(cuid())
-  identifier String  // IP address or email
-  type      String   // "LOGIN" | "OTP_REQUEST" | "PASSWORD_RESET"
-  attempts  Int      @default(1)
-  resetAt   DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  @@unique([identifier, type])
-  @@map("rate_limit_attempts")
+enum ReleaseAccessSource {
+  PURCHASE
+  UNLOCK_CODE
+  ADMIN_GRANT
 }
 
-// NextAuth required tables
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-  @@map("accounts")
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("sessions")
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
-  @@map("verification_tokens")
-}
-
-model UserSettings {
-  id                  String   @id @default(cuid())
-  userId              String   @unique
-  theme               String   @default("system")
-  language            String   @default("en")
-  emailNotifications  Boolean  @default(true)
-  pushNotifications   Boolean  @default(true)
-  playlistPrivacy     String   @default("public")
-  showOnlineStatus    Boolean  @default(true)
-  autoPlayNext        Boolean  @default(true)
-  highQualityAudio    Boolean  @default(false)
-  downloadQuality     String   @default("standard")
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("user_settings")
-}
-
-model Media {
-  id               String   @id @default(cuid())
-  userId           String
-  filename         String
-  originalName     String
-  mimeType         String
-  size             Int
-  cloudStoragePath String
-  purpose          String   // 'avatar', 'track', 'album_art', etc.
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId, purpose])
-  @@index([cloudStoragePath])
-  @@map("media")
-}
-
-// Music Catalog Models
-model Artist {
-  id          String   @id @default(cuid())
-  name        String
-  bio         String?
-  avatar      String?
-  verified    Boolean  @default(false)
-  followerCount Int    @default(0)
-  monthlyListeners Int @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  albums      Album[]
-  tracks      Track[]
-  artistTags  ArtistTag[]
-
-  @@map("artists")
-}
-
-model Album {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  coverArt    String?
-  releaseDate DateTime?
-  albumType   AlbumType @default(ALBUM)
-  duration    Int      @default(0) // in seconds
-  trackCount  Int      @default(0)
-  price       Decimal?  @db.Decimal(10,2) // SHC price
-  isExclusive Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Foreign Keys
-  artistId    String
-  
-  // Relations
-  artist      Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
-  tracks      Track[]
-  albumTags   AlbumTag[]
-  purchases   Purchase[]
-
-  @@map("albums")
-}
-
-model Track {
-  id          String   @id @default(cuid())
-  title       String
-  duration    Int      // in seconds
-  trackNumber Int?
-  lyrics      String?
-  explicit    Boolean  @default(false)
-  price       Decimal? @db.Decimal(10,2) // SHC price for individual track
-  playCount   Int      @default(0)
-  likeCount   Int      @default(0)
-  isExclusive Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Foreign Keys
-  artistId    String
-  albumId     String?
-  
-  // Relations
-  artist      Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
-  album       Album? @relation(fields: [albumId], references: [id], onDelete: SetNull)
-  mediaAssets MediaAsset[]
-  trackTags   TrackTag[]
-  purchases   Purchase[]
-  likes       TrackLike[]
-  playlistTracks PlaylistTrack[]
-  playEvents  PlayEvent[]
-  listeningHistory ListeningHistory[]
-
-  @@map("tracks")
-}
-
-model MediaAsset {
-  id        String    @id @default(cuid())
-  trackId   String
-  type      MediaType @default(AUDIO)
-  url       String    // S3 URL or CDN URL
-  quality   String    @default("320kbps") // e.g., "128kbps", "320kbps", "lossless"
-  size      Int?      // file size in bytes
-  duration  Int?      // duration in seconds (for audio/video)
-  format    String    @default("mp3") // mp3, flac, wav, etc.
-  createdAt DateTime  @default(now())
-
-  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
-
-  @@map("media_assets")
-}
-
-model Tag {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  category  TagCategory @default(GENRE)
-  createdAt DateTime @default(now())
-
-  // Relations
-  artistTags ArtistTag[]
-  albumTags  AlbumTag[]
-  trackTags  TrackTag[]
-
-  @@map("tags")
-}
-
-model ArtistTag {
-  artistId String
-  tagId    String
-
-  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
-  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@id([artistId, tagId])
-  @@map("artist_tags")
-}
-
-model AlbumTag {
-  albumId String
-  tagId   String
-
-  album Album @relation(fields: [albumId], references: [id], onDelete: Cascade)
-  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@id([albumId, tagId])
-  @@map("album_tags")
-}
-
-model TrackTag {
-  trackId String
-  tagId   String
-
-  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
-  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@id([trackId, tagId])
-  @@map("track_tags")
-}
-
-// User interaction models
-model Purchase {
-  id          String      @id @default(cuid())
-  userId      String
-  type        PurchaseType
-  albumId     String?
-  trackId     String?
-  releaseId   String?
-  price       Decimal     @db.Decimal(10,2)
-  currency    String      @default("SHC")
-  status      PurchaseStatus @default(COMPLETED)
-  txHash      String?     // blockchain transaction hash
-  createdAt   DateTime    @default(now())
-
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  album   Album?  @relation(fields: [albumId], references: [id], onDelete: SetNull)
-  track   Track?  @relation(fields: [trackId], references: [id], onDelete: SetNull)
-  release Release? @relation(fields: [releaseId], references: [id], onDelete: SetNull)
-
-  @@map("purchases")
-}
-model TrackLike {
-  userId  String
-  trackId String
-  createdAt DateTime @default(now())
-
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  track Track @relation(fields: [trackId], references: [id], onDelete: Cascade)
-
-  @@id([userId, trackId])
-  @@map("track_likes")
-}
-
-// Slice 3: Listening History Tracking Models
-model PlayEvent {
-  id            String   @id @default(cuid())
-  userId        String
-  trackId       String
-  startTime     DateTime @default(now())
-  endTime       DateTime?
-  duration      Int      @default(0) // Duration listened in seconds
-  completed     Boolean  @default(false) // Whether the track was played to completion
-  
-  // Context information
-  deviceType    String?  // 'mobile', 'desktop', 'tablet'
-  platform      String?  // 'web', 'app'
-  source        String?  // 'search', 'playlist', 'album', 'recommended', 'queue'
-  
-  // Session tracking
-  sessionId     String?  // Unique session identifier
-  
-  // Quality metrics
-  skipPosition  Int?     // Position in seconds where user skipped (if skipped)
-  bufferCount   Int      @default(0) // Number of buffering events
-  
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  track         Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
-  
-  @@index([userId, startTime])
-  @@index([trackId])
-  @@index([startTime])
-  @@index([completed])
-  @@map("play_events")
-}
-
-model ListeningHistory {
-  id          String   @id @default(cuid())
-  userId      String
-  trackId     String
-  lastPlayed  DateTime @default(now())
-  playCount   Int      @default(1) // Number of times this track was played by this user
-  totalTime   Int      @default(0) // Total seconds listened to this track
-  
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  track       Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
-  
-  @@unique([userId, trackId])
-  @@index([userId, lastPlayed])
-  @@index([lastPlayed])
-  @@map("listening_history")
-}
-
-model Playlist {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  coverArt    String?
-  isPublic    Boolean  @default(false)
-  trackCount  Int      @default(0)
-  duration    Int      @default(0) // in seconds
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  tracks PlaylistTrack[]
-
-  @@map("playlists")
-}
-
-model PlaylistTrack {
-  playlistId String
-  trackId    String
-  position   Int
-  addedAt    DateTime @default(now())
-
-  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
-  track    Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
-
-  @@id([playlistId, trackId])
-  @@map("playlist_tracks")
-}
-
-// Enums
-enum AlbumType {
-  ALBUM
-  EP
-  SINGLE
-  COMPILATION
-}
-
-enum MediaType {
-  AUDIO
-  VIDEO
-  IMAGE
-}
-
-enum TagCategory {
-  GENRE
-  MOOD
-  ACTIVITY
-  DECADE
-  LANGUAGE
-}
-
-enum PurchaseType {
-  ALBUM
-  TRACK
-  UNLOCK_CODES
-  STREAMING_FEES
-  PREMIUM_SUBSCRIPTION
-  ARTIST_FEATURES
-  MARKETPLACE_TRANSACTION
-  ALL
-}
-
-enum PurchaseStatus {
-  PENDING
-  COMPLETED
-  FAILED
-  REFUNDED
-}
-
-// Wallet & Payment Models for Slice 6
 enum WalletType {
-  PURCHASES // For fiat/crypto/vouchers - buying content
-  EARNINGS  // For SHC rewards from Stream-to-Earn
+  PURCHASES
+  EARNINGS
 }
 
 enum TransactionType {
@@ -549,798 +82,426 @@ enum PaymentProvider {
   ADMIN_CREDIT
 }
 
-enum CryptoType {
-  SOL
-  USDC
-  SHC
+enum DownloadStatus {
+  PENDING
+  PREPARING
+  READY
+  FAILED
 }
 
-model Wallet {
-  id            String     @id @default(cuid())
-  userId        String
-  type          WalletType
-  balance       Decimal    @default(0) @db.Decimal(20,8) // High precision for crypto
-  currency      String     @default("USD") // USD for purchases, SHC for earnings
-  isActive      Boolean    @default(true)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  
-  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions  Transaction[]
-  
-  @@unique([userId, type]) // One wallet per type per user
-  @@map("wallets")
+enum DownloadFormat {
+  MP3
+  FLAC
+  WAV
 }
 
-model Transaction {
-  id                String            @id @default(cuid())
-  walletId          String
-  type              TransactionType
-  status            TransactionStatus @default(PENDING)
-  amount            Decimal           @db.Decimal(20,8)
-  currency          String
-  description       String
-  reference         String?           @unique // External reference (payment gateway ID, etc.)
-  metadata          Json              @default("{}")
-  
-  // Payment gateway details
-  paymentProvider   PaymentProvider?
-  gatewayResponse   Json?             @default("{}")
-  
-  // Crypto details
-  cryptoType        CryptoType?
-  walletAddress     String?
-  txHash            String?           // Blockchain transaction hash
-  blockHeight       Int?
-  confirmations     Int?              @default(0)
-  
-  // Fee information
-  fee               Decimal?          @db.Decimal(20,8)
-  feesCurrency      String?
-  
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  completedAt       DateTime?
-  
-  wallet            Wallet            @relation(fields: [walletId], references: [id], onDelete: Cascade)
-  
-  @@index([walletId])
-  @@index([status])
-  @@index([type])
+enum SessionStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+  TERMINATED
+}
+
+enum OtpCodeType {
+  LOGIN
+  PASSWORD_RESET
+  VERIFICATION
+}
+
+model User {
+  id                   String                @id @default(uuid())
+  email                String                @unique
+  phone                String?               @unique
+  publicId             String?               @unique
+  passwordHash         String
+  displayName          String
+  primaryRole          RoleType              @default(LISTENER)
+  status               String                @default("active")
+  creatorProfile       Creator?
+  roles                UserRole[]
+  refreshTokens        RefreshToken[]
+  otpCodes             OtpCode[]
+  passwordResetTokens  PasswordResetToken[]
+  sessions             UserSession[]
+  devices              UserDevice[]
+  auditLogs            AuditLog[]            @relation("AuditActor")
+  featureFlagOverrides FeatureFlagOverride[]
+  releases             Release[]
+  createdUnlockCodes   UnlockCode[]          @relation("CreatorUnlockCodes")
+  redeemedUnlockCodes  UnlockCode[]          @relation("RedeemerUnlockCodes")
+  releaseAccesses      ReleaseAccess[]
+  wallets              Wallet[]
+  downloadBundles      DownloadBundle[]
+  codeRedemptionLogs   CodeRedemptionLog[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+}
+
+model Role {
+  id        Int        @id @default(autoincrement())
+  name      RoleType   @unique
+  users     UserRole[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model UserRole {
+  userId     String
+  roleId     Int
+  assignedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model Creator {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  creatorCode String   @unique
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  actorType   String
+  event       String
+  target      String?
+  metadata    Json?
+  requestId   String?
+  createdAt   DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId])
+  @@index([event])
   @@index([createdAt])
-  @@map("transactions")
 }
 
-model PaymentMethod {
-  id            String          @id @default(cuid())
-  provider      PaymentProvider
-  name          String          // Display name
-  isEnabled     Boolean         @default(true)
-  discountRate  Decimal         @default(0) @db.Decimal(5,4) // Percentage discount (0.0000 to 1.0000)
-  minAmount     Decimal?        @db.Decimal(10,2)
-  maxAmount     Decimal?        @db.Decimal(10,2)
-  currency      String          @default("USD")
-  settings      Json            @default("{}")
-  
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  
-  // Relations
-  discountRules DiscountRule[]
-  
-  @@unique([provider])
-  @@map("payment_methods")
-}
-
-model Voucher {
-  id          String    @id @default(cuid())
-  code        String    @unique
-  amount      Decimal   @db.Decimal(10,2)
-  currency    String    @default("USD")
+model FeatureFlag {
+  id          String                 @id @default(uuid())
+  key         String                 @unique
   description String?
-  isActive    Boolean   @default(true)
-  usageLimit  Int?      // null = unlimited
-  usedCount   Int       @default(0)
-  expiresAt   DateTime?
-  createdBy   String?   // Admin user ID who created it
-  
+  enabled     Boolean                @default(false)
+  rolloutType FeatureFlagRolloutType @default(STATIC)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  overrides   FeatureFlagOverride[]
+}
+
+model FeatureFlagOverride {
+  id          String                 @id @default(uuid())
+  flagId      String
+  userId      String?
+  environment FeatureFlagEnvironment @default(LOCAL)
+  value       Boolean                @default(false)
+  notes       String?
+  createdAt   DateTime               @default(now())
+
+  flag FeatureFlag @relation(fields: [flagId], references: [id], onDelete: Cascade)
+  user User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([flagId, environment, userId])
+  @@index([flagId])
+  @@index([userId])
+}
+
+model RefreshToken {
+  id                String    @id @default(uuid())
+  userId            String
+  tokenHash         String
+  issuedAt          DateTime  @default(now())
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  replacedByTokenId String?
+  sessionId         String?
+  userAgent         String?
+  ipAddress         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session        UserSession?   @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  replacement    RefreshToken?  @relation("RefreshTokenReplacement", fields: [replacedByTokenId], references: [id])
+  replacedTokens RefreshToken[] @relation("RefreshTokenReplacement")
+
+  @@index([userId])
+  @@unique([tokenHash])
+  @@index([sessionId])
+}
+
+model PasswordResetToken {
+  id           String    @id @default(uuid())
+  userId       String
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  consumedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  createdByIp  String?
+  consumedByIp String?
+  userAgent    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([userId, consumedAt])
+}
+
+model OtpCode {
+  id           String     @id @default(uuid())
+  userId       String
+  codeHash     String
+  type         OtpCodeType
+  expiresAt    DateTime
+  consumedAt   DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  createdByIp  String?
+  consumedByIp String?
+  userAgent    String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, consumedAt])
+  @@index([expiresAt])
+}
+
+model UserDevice {
+  id          String    @id @default(uuid())
+  userId      String
+  fingerprint String?
+  deviceName  String?
+  deviceType  String?
+  platform    String?
+  osVersion   String?
+  appVersion  String?
+  pushToken   String?
+  userAgent   String?
+  trusted     Boolean   @default(true)
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  
-  redemptions VoucherRedemption[]
-  
-  @@map("vouchers")
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions UserSession[]
+
+  @@index([userId])
+  @@index([fingerprint])
+  @@index([pushToken])
+  @@index([userId, trusted])
 }
 
-model VoucherRedemption {
-  id        String   @id @default(cuid())
-  voucherId String
-  userId    String
-  amount    Decimal  @db.Decimal(10,2)
-  currency  String
-  createdAt DateTime @default(now())
-  
-  voucher   Voucher  @relation(fields: [voucherId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@unique([voucherId, userId]) // Prevent duplicate redemptions
-  @@map("voucher_redemptions")
-}
+model UserSession {
+  id               String        @id @default(uuid())
+  userId           String
+  deviceId         String?
+  sessionTokenHash String        @unique
+  status           SessionStatus @default(ACTIVE)
+  ipAddress        String?
+  userAgent        String?
+  location         Json?
+  expiresAt        DateTime
+  lastSeenAt       DateTime?
+  signedOutAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-model WebhookLog {
-  id            String   @id @default(cuid())
-  provider      PaymentProvider
-  eventType     String
-  webhookId     String?
-  payload       Json
-  signature     String?
-  processed     Boolean  @default(false)
-  error         String?
-  transactionId String?
-  createdAt     DateTime @default(now())
-  
-  @@index([provider, eventType])
-  @@index([processed])
-  @@map("webhook_logs")
-}
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device        UserDevice?    @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  refreshTokens RefreshToken[]
 
-// Slice 7: Creator Upload & Royalty Engine Models
-
-enum UploadStatus {
-  DRAFT
-  PROCESSING
-  PUBLISHED
-  FAILED
-  REJECTED
-}
-
-enum ReleaseType {
-  SINGLE
-  ALBUM
-  EP
-}
-
-enum ContributorRole {
-  MAIN_ARTIST
-  FEATURED_ARTIST
-  PRODUCER
-  SONGWRITER
-  COMPOSER
-  MIXER
-  ENGINEER
-  OTHER
-}
-
-enum ReleaseAccessSource {
-  UNLOCK_CODE
-  PURCHASE
-  ADMIN_GRANT
-}
-model Release {
-  id               String      @id @default(cuid())
-  title            String
-  description      String?
-  coverArt         String?     // Cloud storage path
-  releaseType      ReleaseType
-  releaseDate      DateTime?
-  status           UploadStatus @default(DRAFT)
-  
-  // Creator and publishing
-  creatorId        String      // User ID of the creator
-  publishingFee    Decimal     @default(0) @db.Decimal(10,2)
-  publishingFeeStatus String    @default("PENDING") // PENDING, PAID, REFUNDED
-  publishingFeeTxId String?    // Transaction ID for fee payment
-  
-  // Physical Album Unlock System
-  physicalReleaseType String   @default("digital") // 'digital', 'physical', 'hybrid'
-  physicalUnlockEnabled Boolean @default(false)
-  
-  // Metadata
-  genre            String?
-  mood             String?
-  language         String?
-  isExplicit       Boolean     @default(false)
-  copyrightYear    Int?
-  
-  // Business
-  totalTracks      Int         @default(0)
-  totalDuration    Int         @default(0) // in seconds
-  
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-  publishedAt      DateTime?
-  
-  // Relations
-  creator          User        @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  releaseTracks    ReleaseTrack[]
-  royaltySplits    RoyaltySplit[]
-  unlockCodes      UnlockCode[]
-  purchases        Purchase[]
-  releaseAccesses  ReleaseAccess[]
-  groupCodePacks   GroupCodePack[]
-  
-  @@index([creatorId])
+  @@index([userId])
+  @@index([deviceId])
   @@index([status])
-  @@index([releaseType])
-  @@map("releases")
+  @@index([expiresAt])
+  @@index([userId, status, expiresAt])
+}
+
+model Release {
+  id          String      @id @default(uuid())
+  creatorId   String
+  title       String
+  description String?
+  coverArt    String?
+  releaseType ReleaseType @default(DIGITAL)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  creator         User             @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  tracks          ReleaseTrack[]
+  unlockCodes     UnlockCode[]
+  accessGrants    ReleaseAccess[]
+  downloadBundles DownloadBundle[]
+
+  @@unique([creatorId, title])
+  @@index([creatorId])
+}
+
+model ReleaseTrack {
+  id        String   @id @default(uuid())
+  releaseId String
+  title     String
+  duration  Int?
+  position  Int      @default(0)
+  audioUrl  String?
+  createdAt DateTime @default(now())
+
+  release        Release         @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  downloadAssets DownloadAsset[]
+
+  @@index([releaseId])
 }
 
 model UnlockCode {
-  id              String    @id @default(cuid())
-  code            String    @unique
-  releaseId       String
-  creatorId       String    // User ID of the creator
-  status          String    @default("unused") // 'unused', 'redeemed', 'invalid'
-  redeemedBy      String?   // User ID of redeemer
-  redeemedAt      DateTime?
-  batchId         String?   // For bulk generation
-  costPerCode     Decimal?  @db.Decimal(10,2)
-  codePaymentTransactionId String? // Reference to CodePaymentTransaction
-  
-  // Code Slice 8: Advanced Security Features
-  deviceLockedTo  String?   // Device fingerprint locked to
-  ipLockedTo      String?   // IP address locked to
-  
-  // Code Slice 9: Group Code Packs
-  groupPackId     String?   // Optional: if this code belongs to a group pack
-  
-  createdAt       DateTime  @default(now())
-  
-  release         Release   @relation(fields: [releaseId], references: [id], onDelete: Cascade)
-  creator         User      @relation("CreatorUnlockCodes", fields: [creatorId], references: [userId])
-  redeemer        User?     @relation("RedeemerUnlockCodes", fields: [redeemedBy], references: [userId])
-  paymentTransaction CodePaymentTransaction? @relation(fields: [codePaymentTransactionId], references: [id])
-  groupPack       GroupCodePack? @relation("GroupPackUnlockCodes", fields: [groupPackId], references: [id])
-  redemptionLogs  CodeRedemptionLog[]
-  
-  @@index([code])
+  id             String           @id @default(uuid())
+  code           String           @unique
+  releaseId      String
+  creatorId      String
+  status         UnlockCodeStatus @default(UNUSED)
+  redeemedBy     String?
+  redeemedAt     DateTime?
+  batchId        String?
+  deviceLockedTo String?
+  ipLockedTo     String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  release        Release             @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  creator        User                @relation("CreatorUnlockCodes", fields: [creatorId], references: [id], onDelete: Cascade)
+  redeemer       User?               @relation("RedeemerUnlockCodes", fields: [redeemedBy], references: [id], onDelete: SetNull)
+  redemptionLogs CodeRedemptionLog[]
+
   @@index([releaseId])
   @@index([creatorId])
   @@index([status])
   @@index([batchId])
-  @@index([deviceLockedTo])
-  @@index([ipLockedTo])
-  @@index([groupPackId])
-  @@map("unlock_codes")
 }
 
 model CodeRedemptionLog {
-  id              String    @id @default(cuid())
-  codeId          String
-  userId          String    // User ID of who redeemed
-  ipAddress       String?   // IP address of redemption
-  userAgent       String?   // User agent string
-  deviceFingerprint String? // Device fingerprinting for security
-  redeemedAt      DateTime  @default(now())
-  success         Boolean
-  
-  unlockCode      UnlockCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
-  user            User       @relation(fields: [userId], references: [userId])
-  
+  id                String   @id @default(uuid())
+  codeId            String
+  userId            String
+  ipAddress         String?
+  userAgent         String?
+  deviceFingerprint String?
+  success           Boolean  @default(false)
+  redeemedAt        DateTime @default(now())
+
+  unlockCode UnlockCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([codeId])
   @@index([userId])
   @@index([redeemedAt])
-  @@index([deviceFingerprint])
-  @@map("code_redemption_logs")
 }
 
-model CodePricingTier {
-  id            String    @id @default(cuid())
-  minQuantity   Int
-  maxQuantity   Int?
-  pricePerCode  Decimal   @db.Decimal(10,2) // in USD
-  currency      String    @default("USD")
-  createdBy     String    // Admin user ID
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  
-  @@index([minQuantity])
-  @@index([isActive])
-  @@map("code_pricing_tiers")
-}
-
-model SupportedNetwork {
-  id                  String    @id @default(cuid())
-  networkName         String    // 'TRC20', 'TON', 'BEP20', 'SOLANA'
-  networkDisplayName  String    
-  isEnabled           Boolean   @default(false)
-  adminWalletAddress  String?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @default(now()) @updatedAt
-  
-  codePaymentTransactions CodePaymentTransaction[]
-  
-  @@unique([networkName])
-  @@index([isEnabled])
-  @@map("supported_networks")
-}
-
-model CodePaymentTransaction {
-  id                String            @id @default(cuid())
-  creatorId         String            // User ID of creator
-  batchId           String            @unique
-  paymentMethod     String            // 'wallet' or 'crypto'
-  networkType       String?           // NULL for wallet payments
-  supportedNetworkId String?          // Reference to supported network
-  amountUsd         Decimal           @db.Decimal(10,2)
-  paymentAddress    String?           // Generated one-time address
-  transactionHash   String?           // Blockchain tx hash
-  confirmationStatus String           @default("pending") // 'pending', 'confirmed', 'failed'
-  confirmations     Int               @default(0)
-  createdAt         DateTime          @default(now())
-  confirmedAt       DateTime?
-  
-  creator           User              @relation(fields: [creatorId], references: [userId])
-  supportedNetwork  SupportedNetwork? @relation(fields: [supportedNetworkId], references: [id])
-  unlockCodes       UnlockCode[]
-  
-  @@index([creatorId])
-  @@index([confirmationStatus])
-  @@index([batchId])
-  @@map("code_payment_transactions")
-}
 model ReleaseAccess {
-  id        String               @id @default(cuid())
+  id        String              @id @default(uuid())
   releaseId String
   userId    String
-  source    ReleaseAccessSource  @default(UNLOCK_CODE)
-  grantedAt DateTime             @default(now())
+  source    ReleaseAccessSource @default(UNLOCK_CODE)
+  grantedAt DateTime            @default(now())
   expiresAt DateTime?
-  metadata  Json?                @default("{}")
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
 
   release Release @relation(fields: [releaseId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([releaseId, userId])
   @@index([userId])
-  @@map("release_access")
-}
-model ReleaseTrack {
-  id               String      @id @default(cuid())
-  releaseId        String
-  title            String
-  trackNumber      Int
-  duration         Int         // in seconds
-  
-  // File storage
-  originalFileName String?
-  audioFile        String?     // Cloud storage path for audio file
-  waveform         String?     // Cloud storage path for waveform data
-  
-  // Metadata
-  lyrics           String?
-  isrc             String?     // International Standard Recording Code
-  isExplicit       Boolean     @default(false)
-  
-  // Track-specific pricing (inherits from release if null)
-  price            Decimal?    @db.Decimal(10,2)
-  
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-  
-  // Relations
-  release          Release     @relation(fields: [releaseId], references: [id], onDelete: Cascade)
-  trackContributors TrackContributor[]
-  streamingStats   StreamingStats[]
-  
-  @@index([releaseId])
-  @@index([trackNumber])
-  @@map("release_tracks")
 }
 
-model TrackContributor {
-  id               String      @id @default(cuid())
-  releaseTrackId   String
-  contributorId    String      // User ID of contributor
-  role             ContributorRole
-  royaltyPercentage Decimal    @db.Decimal(5,4) // 0.0000 to 1.0000 (0% to 100%)
-  
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-  
-  // Relations
-  releaseTrack     ReleaseTrack @relation(fields: [releaseTrackId], references: [id], onDelete: Cascade)
-  contributor      User         @relation(fields: [contributorId], references: [id], onDelete: Cascade)
-  
-  @@unique([releaseTrackId, contributorId, role])
-  @@index([contributorId])
-  @@map("track_contributors")
-}
+model Wallet {
+  id        String     @id @default(uuid())
+  userId    String
+  type      WalletType
+  balance   Decimal    @default(0) @db.Decimal(20, 8)
+  currency  String     @default("USD")
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
-model RoyaltySplit {
-  id               String      @id @default(cuid())
-  releaseId        String
-  userId           String      // User receiving royalties
-  percentage       Decimal     @db.Decimal(5,4) // 0.0000 to 1.0000 (0% to 100%)
-  
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-  
-  // Relations  
-  release          Release     @relation(fields: [releaseId], references: [id], onDelete: Cascade)
-  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  royaltyPayments  RoyaltyPayment[]
-  
-  @@unique([releaseId, userId])
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@unique([userId, type])
   @@index([userId])
-  @@map("royalty_splits")
 }
 
-model RoyaltyPayment {
-  id               String      @id @default(cuid())
-  royaltySplitId   String
-  amount           Decimal     @db.Decimal(20,8)
-  currency         String      @default("SHC")
-  period           String      // "2024-01" for monthly payments
-  
-  // Stream data that generated this payment
-  totalStreams     Int         @default(0)
-  qualifiedStreams Int         @default(0)
-  
-  status           String      @default("PENDING") // PENDING, PROCESSED, FAILED
-  processedAt      DateTime?
-  
-  createdAt        DateTime    @default(now())
-  
-  // Relations
-  royaltySplit     RoyaltySplit @relation(fields: [royaltySplitId], references: [id], onDelete: Cascade)
-  
-  @@unique([royaltySplitId, period])
+model WalletTransaction {
+  id              String            @id @default(uuid())
+  walletId        String
+  type            TransactionType
+  status          TransactionStatus @default(PENDING)
+  amount          Decimal           @db.Decimal(20, 8)
+  currency        String
+  description     String?
+  reference       String?           @unique
+  paymentProvider PaymentProvider?
+  metadata        Json?             @default("{}")
+  fee             Decimal?          @db.Decimal(20, 8)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  completedAt     DateTime?
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId])
   @@index([status])
-  @@index([period])
-  @@map("royalty_payments")
-}
-
-// Stream-to-Earn (S2E) Models
-model StreamingStats {
-  id               String      @id @default(cuid())
-  releaseTrackId   String
-  listenerId       String      // User ID of listener
-  
-  // Stream qualification
-  streamDuration   Int         // Duration listened in seconds
-  isQualified      Boolean     @default(false) // Based on S2E rules
-  
-  // S2E rewards
-  rewardAmount     Decimal     @default(0) @db.Decimal(20,8)
-  rewardCurrency   String      @default("SHC")
-  
-  // Session data
-  deviceType       String?
-  location         String?     // Country/region
-  timestamp        DateTime    @default(now())
-  
-  // Relations
-  releaseTrack     ReleaseTrack @relation(fields: [releaseTrackId], references: [id], onDelete: Cascade)
-  listener         User         @relation(fields: [listenerId], references: [id], onDelete: Cascade)
-  
-  @@index([releaseTrackId])
-  @@index([listenerId])
-  @@index([timestamp])
-  @@index([isQualified])
-  @@map("streaming_stats")
-}
-
-model S2EConfiguration {
-  id                 String   @id @default(cuid())
-  isEnabled          Boolean  @default(false) // Admin toggle
-  
-  // Qualification rules
-  minStreamDuration  Int      @default(30) // seconds
-  minStreamPercentage Decimal @default(0.3) @db.Decimal(3,2) // 30% of track
-  
-  // Reward settings
-  rewardPerStream    Decimal  @db.Decimal(20,8) // SHC per qualified stream
-  dailyRewardCap     Decimal  @db.Decimal(20,8) // Max SHC per user per day
-  maxStreamsPerTrack Int      @default(5) // Max qualified streams per track per day
-  
-  // Admin settings
-  platformTake       Decimal  @default(0.1) @db.Decimal(5,4) // 10% platform cut
-  
-  updatedAt          DateTime @updatedAt
-  updatedBy          String   // Admin user ID
-  
-  @@map("s2e_configuration")
-}
-
-model DailyS2EStats {
-  id               String   @id @default(cuid())
-  userId           String
-  date             String   // YYYY-MM-DD
-  
-  totalStreams     Int      @default(0)
-  qualifiedStreams Int      @default(0)
-  totalRewards     Decimal  @default(0) @db.Decimal(20,8)
-  rewardsCapped    Boolean  @default(false)
-  
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  
-  // Relations
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@unique([userId, date])
-  @@index([date])
-  @@map("daily_s2e_stats")
-}
-
-// Comprehensive Discount System
-enum DiscountType {
-  PERCENTAGE
-  FIXED_AMOUNT
-  BUY_X_GET_Y
-  TIERED
-}
-
-
-
-enum DiscountTarget {
-  PAYMENT_METHOD
-  PURCHASE_TYPE
-  GLOBAL
-  USER_TIER
-  CREATOR_TIER
-}
-
-model DiscountRule {
-  id                  String        @id @default(cuid())
-  name                String        // Admin-friendly name
-  description         String?
-  discountType        DiscountType
-  target              DiscountTarget
-  
-  // Discount values
-  percentageDiscount  Decimal?      @db.Decimal(5,4) // 0.0000 to 1.0000 (0% to 100%)
-  fixedAmountDiscount Decimal?      @db.Decimal(10,2) // Fixed USD amount
-  
-  // BUY_X_GET_Y specific
-  buyQuantity         Int?          // Buy X items
-  getQuantity         Int?          // Get Y items free
-  
-  // TIERED specific
-  tierBreakpoints     Json?         // [{"min": 10, "discount": 0.05}, {"min": 50, "discount": 0.10}]
-  
-  // Conditions
-  minOrderAmount      Decimal?      @db.Decimal(10,2)
-  maxOrderAmount      Decimal?      @db.Decimal(10,2)
-  minQuantity         Int?
-  maxQuantity         Int?
-  maxUsagePerUser     Int?          // Limit per user
-  maxTotalUsage       Int?          // Global limit
-  currentTotalUsage   Int           @default(0)
-  
-  // Targeting
-  paymentMethodId     String?       // Specific payment method
-  purchaseTypes       Json?         // Array of PurchaseType enums
-  userTiers           Json?         // Array of user tier requirements
-  creatorTiers        Json?         // Array of creator tier requirements
-  
-  // Scheduling
-  startDate           DateTime?
-  endDate             DateTime?
-  
-  // Status
-  isActive            Boolean       @default(true)
-  isStackable         Boolean       @default(false) // Can combine with other discounts
-  priority            Int           @default(0) // Higher priority applies first
-  
-  // Admin tracking
-  createdBy           String        // Admin user ID
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-  
-  // Relations
-  paymentMethod       PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
-  discountUsages      DiscountUsage[]
-  
-  @@index([isActive])
-  @@index([target])
-  @@index([startDate, endDate])
-  @@index([priority])
-  @@map("discount_rules")
-}
-
-model DiscountUsage {
-  id             String       @id @default(cuid())
-  discountRuleId String
-  userId         String       // User who used the discount
-  orderId        String?      // Reference to order/transaction
-  discountAmount Decimal      @db.Decimal(10,2) // Amount discounted
-  originalAmount Decimal      @db.Decimal(10,2) // Original amount before discount
-  finalAmount    Decimal      @db.Decimal(10,2) // Final amount after discount
-  purchaseType   PurchaseType
-  createdAt      DateTime     @default(now())
-  
-  // Relations
-  discountRule   DiscountRule @relation(fields: [discountRuleId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
-  @@index([discountRuleId])
+  @@index([type])
   @@index([createdAt])
-  @@map("discount_usages")
 }
 
-model AdminDiscountConfiguration {
-  id                    String    @id @default(cuid())
-  globalDiscountEnabled Boolean   @default(true)
-  maxStackableDiscounts Int       @default(3)
-  discountCalculationOrder String @default("priority") // 'priority' or 'amount'
-  autoApplyBestDiscount Boolean   @default(true)
-  settings              Json      @default("{}")
-  
-  updatedBy             String    // Admin user ID
-  updatedAt             DateTime  @updatedAt
-  
-  @@map("admin_discount_config")
+model PaymentMethod {
+  id          String          @id @default(uuid())
+  provider    PaymentProvider @unique
+  displayName String
+  isEnabled   Boolean         @default(true)
+  currency    String          @default("USD")
+  settings    Json            @default("{}")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 }
 
-// Code Slice 8: Fraud Detection Model
-model FraudDetectionLog {
-  id                String    @id @default(cuid())
-  userId            String?   // User ID (if logged in)
-  ipAddress         String?   // IP address of suspicious activity
-  deviceFingerprint String?   // Device fingerprint
-  attemptedCodes    String[]  // Array of codes attempted
-  detectionReason   String    // Reason for flagging
-  flaggedAt         DateTime  @default(now())
-  resolved          Boolean   @default(false)
-  resolvedAt        DateTime?
-  resolvedBy        String?   // Admin user ID who resolved
-  notes             String?   // Admin notes
-  
+model DownloadBundle {
+  id          String         @id @default(uuid())
+  userId      String
+  releaseId   String
+  status      DownloadStatus @default(PENDING)
+  requestedAt DateTime       @default(now())
+  completedAt DateTime?
+  expiresAt   DateTime?
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  release Release         @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  assets  DownloadAsset[]
+
   @@index([userId])
-  @@index([ipAddress])
-  @@index([deviceFingerprint])
-  @@index([flaggedAt])
-  @@index([resolved])
-  @@map("fraud_detection_logs")
-}
-
-// Security Configuration Model
-model SecurityConfiguration {
-  id                    String   @id @default(cuid())
-  
-  // IP/Device Locking Settings
-  deviceLockingEnabled  Boolean  @default(false)
-  ipLockingEnabled      Boolean  @default(false)
-  allowDeviceChange     Boolean  @default(true)
-  deviceChangeLimit     Int      @default(3) // Max device changes allowed
-  
-  // Rate Limiting Settings
-  maxRedemptionAttempts Int      @default(10) // Max attempts per hour per IP
-  rateLimitWindowHours  Int      @default(1)  // Rate limit time window
-  
-  // Fraud Detection Settings
-  fraudDetectionEnabled Boolean  @default(true)
-  suspiciousAttemptThreshold Int @default(5) // Failed attempts to flag
-  blockSuspiciousIPs    Boolean  @default(true)
-  autoBlockDuration     Int      @default(24) // Hours to block suspicious IPs
-  
-  // Admin settings
-  updatedBy             String   // Admin user ID
-  updatedAt             DateTime @updatedAt @default(now())
-  
-  @@map("security_configuration")
-}
-
-// Rate Limiting Model
-model CodeRedemptionRateLimit {
-  id                String   @id @default(cuid())
-  identifier        String   // IP address, user ID, or device fingerprint
-  identifierType    String   // 'ip', 'user', 'device'
-  attempts          Int      @default(1)
-  windowStart       DateTime @default(now())
-  windowEnd         DateTime
-  blocked           Boolean  @default(false)
-  blockedUntil      DateTime?
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
-  @@unique([identifier, identifierType])
-  @@index([identifier])
-  @@index([windowEnd])
-  @@index([blocked])
-  @@map("code_redemption_rate_limits")
-}
-
-// Code Slice 9: Group Code Packs Foundation Models
-model GroupCodePack {
-  id            String    @id @default(cuid())
-  name          String    // e.g., "Family Pack - Album Name"
-  description   String?   // Pack description
-  releaseId     String    // Associated release
-  creatorId     String    // Creator who made this pack
-  packType      String    @default("family") // 'family', 'friends', 'bulk', 'corporate'
-  maxMembers    Int       @default(5) // Maximum number of members allowed
-  currentMembers Int      @default(0) // Current number of members
-  isActive      Boolean   @default(true)
-  expiresAt     DateTime? // Optional expiration date for the pack
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  // Pricing and discount info
-  originalPrice Decimal   @db.Decimal(10,2) // Original total price
-  discountedPrice Decimal @db.Decimal(10,2) // Price after group discount
-  discountPercentage Int  @default(0) // Percentage discount applied
-  
-  // Relations
-  release       Release   @relation(fields: [releaseId], references: [id], onDelete: Cascade)
-  creator       User      @relation("CreatorGroupPacks", fields: [creatorId], references: [userId])
-  packMembers   PackMember[]
-  unlockCodes   UnlockCode[] @relation("GroupPackUnlockCodes")
-  
   @@index([releaseId])
-  @@index([creatorId])
-  @@index([packType])
-  @@index([isActive])
-  @@map("group_code_packs")
 }
 
-model GroupDiscount {
-  id               String    @id @default(cuid())
-  name             String    // e.g., "Family Pack Discount"
-  discountType     String    // 'percentage', 'fixed_amount'
-  discountValue    Decimal   @db.Decimal(10,2) // Percentage (0-100) or fixed amount
-  minMembers       Int       @default(2) // Minimum members required
-  maxMembers       Int?      // Maximum members (null = unlimited)
-  packType         String?   // Specific pack type this applies to
-  isActive         Boolean   @default(true)
-  validFrom        DateTime  @default(now())
-  validUntil       DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  
-  @@index([discountType])
-  @@index([minMembers])
-  @@index([packType])
-  @@index([isActive])
-  @@map("group_discounts")
+model DownloadAsset {
+  id          String         @id @default(uuid())
+  bundleId    String
+  trackId     String?
+  format      DownloadFormat
+  quality     String?
+  sizeBytes   Int?
+  checksum    String?
+  downloadUrl String?
+  status      DownloadStatus @default(PREPARING)
+  createdAt   DateTime       @default(now())
+
+  bundle DownloadBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  track  ReleaseTrack?  @relation(fields: [trackId], references: [id])
+
+  @@index([bundleId])
+  @@index([trackId])
 }
-
-model PackMember {
-  id           String    @id @default(cuid())
-  packId       String    // Group pack ID
-  userId       String    // Member user ID
-  role         String    @default("member") // 'owner', 'admin', 'member'
-  joinedAt     DateTime  @default(now())
-  isActive     Boolean   @default(true)
-  inviteCode   String?   @unique // Unique code for inviting this member
-  invitedBy    String?   // User ID of who invited this member
-  
-  // Redemption tracking for this member
-  hasRedeemed  Boolean   @default(false)
-  redeemedAt   DateTime?
-  redeemedCodeId String? // Which specific code they used
-  
-  // Relations  
-  pack         GroupCodePack @relation(fields: [packId], references: [id], onDelete: Cascade)
-  user         User          @relation("PackMemberships", fields: [userId], references: [userId])
-  inviter      User?         @relation("PackInvitations", fields: [invitedBy], references: [userId])
-  
-  @@unique([packId, userId]) // One user per pack
-  @@index([packId])
-  @@index([userId])
-  @@index([role])
-  @@index([isActive])
-  @@index([inviteCode])
-  @@map("pack_members")
-}
-
-// Add the new relations to existing User model
-
-
-
-
-
-
-
-
-
-
-
-
-

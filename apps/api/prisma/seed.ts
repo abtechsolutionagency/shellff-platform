@@ -89,7 +89,7 @@ async function seedFeatureFlags() {
         flagId_environment_userId: {
           flagId: onboardingFlag.id,
           environment: FeatureFlagEnvironment.LOCAL,
-          userId: null,
+          userId: 'system',
         },
       },
       update: { value: true },

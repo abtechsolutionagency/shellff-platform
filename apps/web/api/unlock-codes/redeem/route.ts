@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true, userId: true },
+      select: { id: true },
     });
 
     if (!user) {
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     const result = await redeemUnlockCode(code, {
       userPrimaryId: user.id,
-      userPublicId: user.userId,
+      userPublicId: user.id,
       clientIp: clientIp || undefined,
       userAgent,
       deviceFingerprint,

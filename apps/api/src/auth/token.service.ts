@@ -166,7 +166,7 @@ export class TokenService {
       throw new UnauthorizedException('Token has expired');
     }
 
-    return payloadJson;
+    return payloadJson as { iat: number; exp: number } & Record<string, any>;
   }
 
   private decodeJsonSegment<T extends Record<string, unknown>>(

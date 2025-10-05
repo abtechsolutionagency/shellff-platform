@@ -2,31 +2,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
-import { UserType } from "@prisma/client";
-import { generateSciId, generateUserId } from "@/lib/sci-id";
-import { generateOtp, OTP_TYPES } from "@/lib/otp";
-import { sendOtpEmail, sendWelcomeEmail } from "@/lib/email";
-import { checkRateLimit, getClientIP } from "@/lib/rate-limit";
+import { RoleType } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { email, password, username, firstName, lastName, userType } = body;
-    const clientIP = getClientIP(req);
-
-    // Rate limiting for signups
-    const rateLimitCheck = await checkRateLimit(clientIP, 'LOGIN');
-    if (!rateLimitCheck.allowed) {
-      return NextResponse.json(
-        { 
-          error: "Too many signup attempts. Please try again later.",
-          resetTime: rateLimitCheck.resetTime 
-        },
-        { status: 429 }
-      );
-    }
+    const { email, password, username, firstName, lastName, accountType } = body;
 
     // Validate required fields
     if (!email || !password || !username) {
@@ -58,7 +41,7 @@ export async function POST(req: NextRequest) {
       where: {
         OR: [
           { email: email },
-          { username: username }
+          { displayName: username }
         ]
       }
     });
@@ -73,68 +56,34 @@ export async function POST(req: NextRequest) {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // Generate User ID for all users
-    const userId = await generateUserId();
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Failed to generate user ID. Please try again." },
-        { status: 500 }
-      );
-    }
+    // Validate and set role
+    const validRole = accountType === "CREATOR" ? RoleType.CREATOR : RoleType.LISTENER;
 
-    // Validate and set userType
-    const validUserType = userType === "CREATOR" ? UserType.CREATOR : UserType.LISTENER;
-
-    // Generate SCI ID only for creators
-    let sciId = null;
-    if (validUserType === UserType.CREATOR) {
-      sciId = await generateSciId();
-      if (!sciId) {
-        return NextResponse.json(
-          { error: "Failed to generate Creator ID. Please try again." },
-          { status: 500 }
-        );
-      }
-    }
+    // Create display name from firstName and lastName or use username
+    const displayName = firstName && lastName ? `${firstName} ${lastName}` : username;
 
     // Create user
     const user = await prisma.user.create({
       data: {
         email,
         passwordHash,
-        username,
-        firstName: firstName || null,
-        lastName: lastName || null,
-        userType: validUserType,
-        userId,
-        sciId,
+        displayName,
+        primaryRole: validRole,
       },
       select: {
         id: true,
-        userId: true,
         email: true,
-        username: true,
-        firstName: true,
-        lastName: true,
-        userType: true,
-        sciId: true,
+        displayName: true,
+        primaryRole: true,
+        status: true,
         createdAt: true,
       }
     });
 
-    // Generate and send email verification OTP
-    const verificationOtp = await generateOtp(user.id, OTP_TYPES.VERIFICATION);
-    await sendOtpEmail(user.email, verificationOtp, 'VERIFICATION');
-
-    // Send welcome email
-    await sendWelcomeEmail(user.email, user.firstName || user.username, user.userId, user.sciId || undefined);
-
     return NextResponse.json(
       { 
-        message: "Account created successfully! Please check your email for verification code.",
+        message: "Account created successfully!",
         user: user,
-        requiresEmailVerification: true
       },
       { status: 201 }
     );

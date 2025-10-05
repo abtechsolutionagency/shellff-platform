@@ -40,8 +40,7 @@ export async function POST(request: NextRequest) {
     const release = await prisma.release.findFirst({
       where: {
         id: releaseId,
-        creatorId: user.userId,
-        physicalUnlockEnabled: true
+        creatorId: user.id,
       },
       include: {
         creator: true
@@ -68,9 +67,9 @@ export async function POST(request: NextRequest) {
           data: {
             code,
             releaseId,
-            creatorId: user.userId,
+            creatorId: user.id,
             batchId,
-            status: 'unused'
+            status: 'UNUSED'
           }
         });
       })
@@ -80,9 +79,7 @@ export async function POST(request: NextRequest) {
     const barcodeData = await generateBatchBarcodes(codes, { format: 'svg' });
     
     // Get artist name from creator
-    const artistName = [release.creator.firstName, release.creator.lastName]
-      .filter(Boolean)
-      .join(' ') || release.creator.username || 'Unknown Artist';
+    const artistName = release.creator.displayName || 'Unknown Artist';
 
     // Prepare data for PDF and CSV generation
     const codeData = unlockCodes.map((unlockCode, index) => ({

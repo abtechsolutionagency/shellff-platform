@@ -14,9 +14,10 @@
     "dev:mobile": "pnpm --filter @shellff/mobile start"
   },
   "devDependencies": {
-    "@shellff/config": "workspace:*",
     "@eslint/js": "^8.57.0",
+    "@nestjs/cli": "^10.4.7",
     "@next/eslint-plugin-next": "^15.3.0",
+    "@shellff/config": "workspace:*",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
     "eslint": "^8.57.0",

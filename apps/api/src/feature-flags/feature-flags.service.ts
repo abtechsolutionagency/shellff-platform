@@ -103,7 +103,7 @@ export class FeatureFlagsService {
         flagId_environment_userId: {
           flagId: flag.id,
           environment,
-          userId: dto.userId ?? null,
+          userId: dto.userId as any,
         },
       },
       update: {

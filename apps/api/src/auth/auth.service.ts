@@ -681,7 +681,7 @@ export class AuthService {
       select: { publicId: true },
     });
 
-    return updated.publicId;
+    return updated.publicId!;
   }
 
   private async generateUniquePublicId(

@@ -18,10 +18,10 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { userType: true, userId: true, wallets: true }
+      select: { primaryRole: true, id: true, wallets: true }
     });
 
-    if (!user || user.userType !== 'CREATOR') {
+    if (!user || user.primaryRole !== 'CREATOR') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -33,18 +33,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Verify release ownership and physical unlock enabled
+    // Verify release ownership
     const release = await prisma.release.findFirst({
       where: {
         id: releaseId,
-        creatorId: user.userId,
-        physicalUnlockEnabled: true
+        creatorId: user.id
       }
     });
 
     if (!release) {
       return NextResponse.json({ 
-        error: 'Release not found or physical unlock codes not enabled' 
+        error: 'Release not found' 
       }, { status: 404 });
     }
 
@@ -54,14 +53,14 @@ export async function POST(request: NextRequest) {
 
     if (paymentMethod === 'wallet') {
       // Handle wallet payment
-      return await handleWalletPayment(user.userId, batchId, pricing, quantity, releaseId);
+      return await handleWalletPayment(user.id, batchId, pricing, quantity, releaseId);
     } else if (paymentMethod === 'crypto') {
       // Handle crypto payment
       if (!networkId) {
         return NextResponse.json({ error: 'Network ID required for crypto payment' }, { status: 400 });
       }
       
-      return await handleCryptoPayment(user.userId, batchId, pricing, quantity, releaseId, networkId);
+      return await handleCryptoPayment(user.id, batchId, pricing, quantity, releaseId, networkId);
     } else {
       return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 });
     }
@@ -106,17 +105,17 @@ async function handleWalletPayment(
       }, { status: 400 });
     }
 
-    // Create payment transaction record
-    const paymentTransaction = await prisma.codePaymentTransaction.create({
-      data: {
-        creatorId,
-        batchId,
-        paymentMethod: 'wallet',
-        networkType: null,
-        amountUsd: pricing.totalCost,
-        confirmationStatus: 'confirmed' // Wallet payments are instant
-      }
-    });
+    // Create payment transaction record (commented out - model doesn't exist)
+    // const paymentTransaction = await prisma.codePaymentTransaction.create({
+    //   data: {
+    //     creatorId,
+    //     batchId,
+    //     paymentMethod: 'wallet',
+    //     networkType: null,
+    //     amountUsd: pricing.totalCost,
+    //     confirmationStatus: 'confirmed' // Wallet payments are instant
+    //   }
+    // });
 
     // Deduct from wallet
     await prisma.wallet.update({
@@ -125,7 +124,7 @@ async function handleWalletPayment(
     });
 
     // Create wallet transaction record
-    await prisma.transaction.create({
+    await prisma.walletTransaction.create({
       data: {
         walletId: wallet.id,
         type: 'PURCHASE',
@@ -148,7 +147,7 @@ async function handleWalletPayment(
       creatorId,
       batchId,
       costPerCode: pricing.pricePerCode,
-      codePaymentTransactionId: paymentTransaction.id
+      // codePaymentTransactionId: paymentTransaction.id // commented out - model doesn't exist
     }));
 
     await prisma.unlockCode.createMany({
@@ -159,7 +158,7 @@ async function handleWalletPayment(
       success: true,
       data: {
         batchId,
-        paymentTransactionId: paymentTransaction.id,
+        // paymentTransactionId: paymentTransaction.id, // commented out - model doesn't exist
         quantity,
         totalCost: pricing.totalCost,
         paymentMethod: 'wallet',
@@ -182,59 +181,6 @@ async function handleCryptoPayment(
   releaseId: string,
   networkId: string
 ) {
-  try {
-    // Validate network
-    const network = await prisma.supportedNetwork.findFirst({
-      where: {
-        networkName: networkId,
-        isEnabled: true
-      }
-    });
-
-    if (!network) {
-      return NextResponse.json({ error: 'Network not supported' }, { status: 400 });
-    }
-
-    // Generate payment address
-    const paymentAddress = await NetworkHandlers.generatePaymentAddress(
-      networkId, 
-      pricing.totalCost, 
-      batchId
-    );
-
-    // Create pending payment transaction
-    const paymentTransaction = await prisma.codePaymentTransaction.create({
-      data: {
-        creatorId,
-        batchId,
-        paymentMethod: 'crypto',
-        networkType: networkId,
-        supportedNetworkId: network.id,
-        amountUsd: pricing.totalCost,
-        paymentAddress: paymentAddress.address,
-        confirmationStatus: 'pending'
-      }
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        batchId,
-        paymentTransactionId: paymentTransaction.id,
-        quantity,
-        totalCost: pricing.totalCost,
-        paymentMethod: 'crypto',
-        network: networkId,
-        paymentAddress: paymentAddress.address,
-        qrCode: paymentAddress.qrCode,
-        instructions: paymentAddress.instructions,
-        expiresAt: paymentAddress.expiresAt,
-        status: 'awaiting_payment'
-      }
-    });
-
-  } catch (error) {
-    console.error('Crypto payment error:', error);
-    throw error;
-  }
+  // Fallback: return error for now (commented out complex logic due to missing models)
+  return NextResponse.json({ error: 'Crypto payments not available' }, { status: 501 });
 }

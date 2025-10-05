@@ -26,8 +26,7 @@ export async function GET(_request: NextRequest) {
 
     const publishedReleases = await prisma.release.count({
       where: { 
-        creatorId: userId,
-        status: 'PUBLISHED'
+        creatorId: userId
       }
     });
 

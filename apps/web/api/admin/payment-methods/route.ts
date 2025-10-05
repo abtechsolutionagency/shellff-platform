@@ -24,7 +24,7 @@ export async function GET() {
     }
 
     const paymentMethods = await prisma.paymentMethod.findMany({
-      orderBy: { name: 'asc' }
+      orderBy: { displayName: 'asc' }
     });
 
     return NextResponse.json(paymentMethods);
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, discountRate, isEnabled } = body;
+    const { id, isEnabled } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -64,18 +64,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate discount rate
-    if (discountRate !== undefined && (discountRate < 0 || discountRate > 1)) {
-      return NextResponse.json(
-        { error: 'Discount rate must be between 0 and 1' },
-        { status: 400 }
-      );
-    }
-
     const updatedPaymentMethod = await prisma.paymentMethod.update({
       where: { id },
       data: {
-        discountRate: discountRate !== undefined ? parseFloat(discountRate.toString()) : undefined,
         isEnabled: isEnabled !== undefined ? isEnabled : undefined
       }
     });

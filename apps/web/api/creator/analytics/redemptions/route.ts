@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
       where: { email: session.user.email },
     });
 
-    if (!user || user.userType !== 'CREATOR') {
+    if (!user || user.primaryRole !== 'CREATOR') {
       return NextResponse.json({ error: 'Access denied. Creator account required.' }, { status: 403 });
     }
 
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
     // Build base query filters
     const baseFilters: any = {
-      creatorId: user.userId,
+      creatorId: user.id,
     };
 
     if (releaseId) {
@@ -130,9 +130,7 @@ export async function GET(req: NextRequest) {
         },
         user: {
           select: {
-            username: true,
-            firstName: true,
-            lastName: true,
+            displayName: true,
           },
         },
       },
@@ -142,31 +140,13 @@ export async function GET(req: NextRequest) {
       take: 10,
     });
 
-    // Get monthly revenue from code sales
-    const codeRevenue = await prisma.codePaymentTransaction.findMany({
-      where: {
-        creatorId: user.userId,
-        confirmationStatus: 'confirmed',
-        createdAt: {
-          gte: startDate,
-        },
-      },
-      select: {
-        amountUsd: true,
-        createdAt: true,
-        batchId: true,
-      },
-    });
-
-    const totalRevenue = codeRevenue.reduce((sum: number, transaction: any) =>
-      sum + parseFloat(transaction.amountUsd.toString()), 0
-    );
+    // Revenue tracking not available in current schema
+    const totalRevenue = 0;
 
     // Get releases for filtering
     const userReleases = await prisma.release.findMany({
       where: {
-        creatorId: user.userId,
-        physicalUnlockEnabled: true,
+        creatorId: user.id,
       },
       select: {
         id: true,
@@ -209,11 +189,7 @@ export async function GET(req: NextRequest) {
           success: activity.success,
           ipAddress: activity.ipAddress,
         })),
-        revenue: codeRevenue.map((transaction: any) => ({
-          amount: parseFloat(transaction.amountUsd.toString()),
-          date: transaction.createdAt,
-          batchId: transaction.batchId,
-        })),
+        revenue: [], // Revenue tracking not available in current schema
         releases: userReleases,
       },
     });

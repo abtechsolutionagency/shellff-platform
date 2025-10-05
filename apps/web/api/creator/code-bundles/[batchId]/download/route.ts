@@ -41,7 +41,7 @@ export async function GET(
     const unlockCodes = await prisma.unlockCode.findMany({
       where: {
         batchId,
-        creatorId: user.userId
+        creatorId: user.id
       },
       include: {
         release: {
@@ -60,9 +60,7 @@ export async function GET(
     }
 
     const release = unlockCodes[0].release;
-    const artistName = [release.creator.firstName, release.creator.lastName]
-      .filter(Boolean)
-      .join(' ') || release.creator.username || 'Unknown Artist';
+    const artistName = release.creator.displayName || 'Unknown Artist';
     const codes = unlockCodes.map((uc: any) => uc.code);
 
     switch (format) {

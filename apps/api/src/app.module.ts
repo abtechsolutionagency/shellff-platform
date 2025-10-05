@@ -13,6 +13,7 @@ import { MonitoredThrottlerStorageService } from './telemetry/monitored-throttle
 import { RateLimitMonitorService } from './telemetry/rate-limit-monitor.service';
 import { validateEnv } from './config/env.validation';
 import { PrismaModule } from './prisma/prisma.module';
+import { HealthController } from './health.controller';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -33,6 +34,7 @@ import { PrismaModule } from './prisma/prisma.module';
     FeatureFlagsModule,
     TelemetryModule,
   ],
+  controllers: [HealthController],
   providers: [
     {
       provide: MonitoredThrottlerStorageService,

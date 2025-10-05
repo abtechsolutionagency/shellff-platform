@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true, userId: true },
+      select: { id: true },
     });
 
     if (!user) {
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     const stats = await getUserRedemptionStats({
       userPrimaryId: user.id,
-      userPublicId: user.userId,
+      userPublicId: user.id,
     });
 
     return NextResponse.json(stats);

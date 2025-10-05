@@ -55,10 +55,10 @@ export async function POST(request: NextRequest) {
     // Check if user is a creator
     const user = await prisma.user.findUnique({
       where: { id: (session.user as any).id },
-      select: { userType: true, sciId: true }
+      select: { primaryRole: true }
     });
 
-    if (!user || user.userType !== 'CREATOR') {
+    if (!user || user.primaryRole !== 'CREATOR') {
       return NextResponse.json(
         { error: 'Only creators can upload music' },
         { status: 403 }
@@ -286,25 +286,14 @@ export async function GET(request: NextRequest) {
       prisma.release.findMany({
         where,
         include: {
-          releaseTracks: {
+          tracks: {
             select: {
               id: true,
               title: true,
               duration: true,
-              trackNumber: true,
+              position: true,
             },
-            orderBy: { trackNumber: 'asc' },
-          },
-          royaltySplits: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  username: true,
-                  sciId: true,
-                },
-              },
-            },
+            orderBy: { position: 'asc' },
           },
         },
         orderBy: { createdAt: 'desc' },

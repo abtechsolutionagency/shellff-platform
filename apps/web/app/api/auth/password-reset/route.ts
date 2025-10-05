@@ -99,9 +99,7 @@ export async function POST(req: NextRequest) {
       await prisma.user.update({
         where: { id: user.id },
         data: { 
-          passwordHash,
-          failedLoginAttempts: 0,
-          lockedUntil: null
+          passwordHash
         }
       });
       

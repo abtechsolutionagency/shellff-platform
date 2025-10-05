@@ -15,28 +15,23 @@ export async function GET(_request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { userType: true, userId: true }
+      select: { primaryRole: true, id: true }
     });
 
-    if (!user || user.userType !== 'CREATOR') {
+    if (!user || user.primaryRole !== 'CREATOR') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    // Fetch releases with physical unlock enabled
+    // Fetch releases for this creator
     const releases = await prisma.release.findMany({
       where: {
-        creatorId: user.userId,
-        physicalUnlockEnabled: true
+        creatorId: user.id
       },
       select: {
         id: true,
         title: true,
         releaseType: true,
-        status: true,
-        physicalUnlockEnabled: true,
-        physicalReleaseType: true,
         coverArt: true,
-        publishedAt: true,
         createdAt: true
       },
       orderBy: {

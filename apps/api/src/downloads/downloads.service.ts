@@ -118,7 +118,7 @@ export class DownloadsService {
             checksum: track?.audioUrl ? undefined : 'pending-checksum',
           },
         });
-        readyAssets.push({ id: updated.id, trackId: updated.trackId });
+        readyAssets.push({ id: updated.id, trackId: updated.trackId! });
       }
 
       const completedBundle = await tx.downloadBundle.update({

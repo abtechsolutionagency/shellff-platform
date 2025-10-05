@@ -47,19 +47,15 @@ export async function GET(request: NextRequest) {
         },
         creator: {
           select: {
-            userId: true,
-            firstName: true,
-            lastName: true,
-            username: true,
+            id: true,
+            displayName: true,
             email: true
           }
         },
         redeemer: {
           select: {
-            userId: true,
-            firstName: true,
-            lastName: true,
-            username: true,
+            id: true,
+            displayName: true,
             email: true
           }
         }
@@ -87,13 +83,9 @@ export async function GET(request: NextRequest) {
     const csvRows = [
       headers.join(','), // Header row
       ...codes.map((code: any) => {
-        const creatorName = code.creator?.firstName && code.creator?.lastName 
-          ? `${code.creator.firstName} ${code.creator.lastName}`
-          : code.creator?.username || 'Unknown';
+        const creatorName = code.creator?.displayName || 'Unknown';
         
-        const redeemerName = code.redeemer?.firstName && code.redeemer?.lastName 
-          ? `${code.redeemer.firstName} ${code.redeemer.lastName}`
-          : code.redeemer?.username || '';
+        const redeemerName = code.redeemer?.displayName || '';
 
         return [
           `"${code.code}"`,

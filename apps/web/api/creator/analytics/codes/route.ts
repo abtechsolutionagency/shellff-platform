@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
       where: { email: session.user.email },
     });
 
-    if (!user || user.userType !== 'CREATOR') {
+    if (!user || user.primaryRole !== 'CREATOR') {
       return NextResponse.json({ error: 'Access denied. Creator account required.' }, { status: 403 });
     }
 
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
 
     // Build filters
     const filters: any = {
-      creatorId: user.userId,
+      creatorId: user.id,
     };
 
     if (search) {
@@ -71,16 +71,7 @@ export async function GET(req: NextRequest) {
         },
         redeemer: {
           select: {
-            username: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-        paymentTransaction: {
-          select: {
-            batchId: true,
-            amountUsd: true,
-            paymentMethod: true,
+            displayName: true,
           },
         },
         redemptionLogs: {
@@ -168,7 +159,7 @@ export async function POST(req: NextRequest) {
       where: { email: session.user.email },
     });
 
-    if (!user || user.userType !== 'CREATOR') {
+    if (!user || user.primaryRole !== 'CREATOR') {
       return NextResponse.json({ error: 'Access denied. Creator account required.' }, { status: 403 });
     }
 
@@ -176,7 +167,7 @@ export async function POST(req: NextRequest) {
 
     // Build query filters
     const queryFilters: any = {
-      creatorId: user.userId,
+      creatorId: user.id,
     };
 
     if (filters?.status && filters.status !== 'all') {
@@ -205,9 +196,7 @@ export async function POST(req: NextRequest) {
         },
         redeemer: {
           select: {
-            username: true,
-            firstName: true,
-            lastName: true,
+            displayName: true,
           },
         },
       },

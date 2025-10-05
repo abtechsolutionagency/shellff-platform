@@ -64,29 +64,17 @@ export async function GET(request: NextRequest) {
     }
 
     const [albums, totalCount] = await Promise.all([
-      prisma.album.findMany({
+      prisma.release.findMany({
         where,
         skip: offset,
         take: limit,
         orderBy,
         include: {
-          artist: {
+          creator: {
             select: {
               id: true,
-              name: true,
-              avatar: true,
-              verified: true
-            }
-          },
-          albumTags: {
-            include: {
-              tag: {
-                select: {
-                  id: true,
-                  name: true,
-                  category: true
-                }
-              }
+              displayName: true,
+              email: true
             }
           },
           tracks: {
@@ -95,22 +83,21 @@ export async function GET(request: NextRequest) {
               id: true,
               title: true,
               duration: true,
-              trackNumber: true,
-              explicit: true
+              position: true, // Using position instead of trackNumber
+              audioUrl: true
             },
             orderBy: {
-              trackNumber: "asc"
+              position: "asc" // Using position instead of trackNumber
             }
           },
           _count: {
             select: {
-              tracks: true,
-              purchases: true
+              tracks: true
             }
           }
         }
       }),
-      prisma.album.count({ where })
+      prisma.release.count({ where })
     ]);
 
     const totalPages = Math.ceil(totalCount / limit);
@@ -121,16 +108,16 @@ export async function GET(request: NextRequest) {
         title: album.title,
         description: album.description,
         coverArt: album.coverArt,
-        releaseDate: album.releaseDate,
-        albumType: album.albumType,
-        duration: album.duration,
+        releaseDate: album.createdAt, // Using createdAt as releaseDate
+        albumType: album.releaseType, // Using releaseType as albumType
+        duration: 0, // Duration not available in Release model
         trackCount: album._count.tracks,
-        price: album.price,
-        isExclusive: album.isExclusive,
-        purchaseCount: album._count.purchases,
+        price: 0, // Price not available in Release model
+        isExclusive: false, // Not available in Release model
+        purchaseCount: 0, // Purchase count not available
         createdAt: album.createdAt,
-        artist: album.artist,
-        tags: album.albumTags.map((at: any) => at.tag),
+        artist: album.creator, // Using creator as artist
+        tags: [], // Tags not available in Release model
         previewTracks: album.tracks
       })),
       pagination: {
