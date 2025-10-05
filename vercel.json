@@ -1,6 +1,4 @@
 {
-  "buildCommand": "pnpm turbo run build --filter=@shellff/web",
-  "installCommand": "pnpm install --frozen-lockfile",
-  "framework": "nextjs",
-  "outputDirectory": "apps/web/.next"
+  "buildCommand": "pnpm --filter @shellff/web build",
+  "installCommand": "pnpm install --frozen-lockfile"
 }
