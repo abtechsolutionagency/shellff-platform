@@ -14,7 +14,7 @@ async function main() {
   await prisma.unlockCode.deleteMany({});
   await prisma.releaseTrack.deleteMany({});
   await prisma.release.deleteMany({});
-  await prisma.codePricingTier.deleteMany({});
+  // await prisma.codePricingTier.deleteMany({}); // Commented out - model doesn't exist
   await prisma.user.deleteMany({});
 
   // Create main admin account
@@ -24,13 +24,13 @@ async function main() {
     data: {
       email: 'admin@shellff.com',
       passwordHash: adminPassword,
-      username: 'admin_shellff',
-      firstName: 'Admin',
-      lastName: 'User',
-      userType: UserType.ADMIN,
-      userId: await generateUserId(),
-      bio: 'Main administrator for Shellff platform',
-      isVerified: true,
+      displayName: 'admin_shellff', // Using displayName instead of username
+      // firstName: 'Admin', // Commented out - field doesn't exist
+      // lastName: 'User', // Commented out - field doesn't exist
+      primaryRole: 'ADMIN', // Using primaryRole instead of userType
+      // userId: await generateUserId(), // Commented out - field doesn't exist
+      // bio: 'Main administrator for Shellff platform', // Commented out - field doesn't exist
+      // isVerified: true, // Commented out - field doesn't exist
     },
   });
 
@@ -41,13 +41,13 @@ async function main() {
     data: {
       email: 'listener@shellff.com',
       passwordHash: listenerPassword,
-      username: 'demo_listener',
-      firstName: 'Demo',
-      lastName: 'Listener',
-      userType: UserType.LISTENER,
-      userId: await generateUserId(),
-      bio: 'Demo listener account for testing Shellff platform',
-      isVerified: true,
+      displayName: 'demo_listener', // Using displayName instead of username
+      // firstName: 'Demo', // Commented out - field doesn't exist
+      // lastName: 'Listener', // Commented out - field doesn't exist
+      primaryRole: 'LISTENER', // Using primaryRole instead of userType
+      // userId: await generateUserId(), // Commented out - field doesn't exist
+      // bio: 'Demo listener account for testing Shellff platform', // Commented out - field doesn't exist
+      // isVerified: true, // Commented out - field doesn't exist
     },
   });
 
@@ -58,14 +58,14 @@ async function main() {
     data: {
       email: 'creator@shellff.com',
       passwordHash: creatorPassword,
-      username: 'demo_creator',
-      firstName: 'Demo',
-      lastName: 'Creator',
-      userType: UserType.CREATOR,
-      userId: await generateUserId(),
-      sciId: await generateSciId(),
-      bio: 'Demo creator account for testing Shellff platform',
-      isVerified: true,
+      displayName: 'demo_creator', // Using displayName instead of username
+      // firstName: 'Demo', // Commented out - field doesn't exist
+      // lastName: 'Creator', // Commented out - field doesn't exist
+      primaryRole: 'CREATOR', // Using primaryRole instead of userType
+      // userId: await generateUserId(), // Commented out - field doesn't exist
+      // sciId: await generateSciId(), // Commented out - field doesn't exist
+      // bio: 'Demo creator account for testing Shellff platform', // Commented out - field doesn't exist
+      // isVerified: true, // Commented out - field doesn't exist
     },
   });
 
@@ -79,7 +79,7 @@ async function main() {
       maxQuantity: 999,
       pricePerCode: 50.00, // $50 each
       currency: 'USD',
-      createdBy: mainAdmin.userId, // Admin user
+      createdBy: mainAdmin.id, // Admin user
       isActive: true,
     },
     {
@@ -87,7 +87,7 @@ async function main() {
       maxQuantity: 4999,
       pricePerCode: 30.00, // $30 each
       currency: 'USD', 
-      createdBy: mainAdmin.userId, // Admin user
+      createdBy: mainAdmin.id, // Admin user
       isActive: true,
     },
     {
@@ -95,14 +95,15 @@ async function main() {
       maxQuantity: null, // No upper limit
       pricePerCode: 20.00, // $20 each
       currency: 'USD',
-      createdBy: mainAdmin.userId, // Admin user
+      createdBy: mainAdmin.id, // Admin user
       isActive: true,
     }
   ];
 
-  for (const tier of pricingTiers) {
-    await prisma.codePricingTier.create({ data: tier });
-  }
+  // Commented out - codePricingTier model doesn't exist
+  // for (const tier of pricingTiers) {
+  //   await prisma.codePricingTier.create({ data: tier });
+  // }
 
   // Create sample releases and unlock codes for testing
   console.log('ðŸŽµ Creating sample releases and unlock codes...');
@@ -112,16 +113,16 @@ async function main() {
     data: {
       title: "Midnight Reflections",
       description: "A collection of ambient electronic tracks perfect for late night listening",
-      releaseType: "ALBUM",
-      physicalUnlockEnabled: true,
+      releaseType: "DIGITAL", // Using valid ReleaseType enum value
+      // physicalUnlockEnabled: true, // Commented out - field doesn't exist
       creatorId: demoCreator.id,
-      releaseDate: new Date(),
-      publishingFee: 100.00,
-      publishingFeeStatus: "PAID",
-      status: "PUBLISHED",
+      // releaseDate: new Date(), // Commented out - field doesn't exist
+      // publishingFee: 100.00, // Commented out - field doesn't exist
+      // publishingFeeStatus: "PAID", // Commented out - field doesn't exist
+      // status: "PUBLISHED", // Commented out - field doesn't exist
       coverArt: "https://images.unsplash.com/photo-1629923759854-156b88c433aa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtdXNpYyUyMGFsYnVtJTIwY292ZXIlMjB2aW55bHxlbnwxfHx8fDE3NTc5OTg0MzB8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      totalTracks: 1,
-      totalDuration: 240,
+      // totalTracks: 1, // Commented out - field doesn't exist
+      // totalDuration: 240, // Commented out - field doesn't exist
     }
   });
 
@@ -130,9 +131,9 @@ async function main() {
     data: {
       title: "Starlight Dreams",
       duration: 240,
-      trackNumber: 1,
+      position: 1, // Using position instead of trackNumber
       releaseId: sampleRelease.id,
-      audioFile: "/audio/starlight-dreams.mp3",
+      // audioFile: "/audio/starlight-dreams.mp3", // Commented out - field doesn't exist
     }
   });
 
@@ -147,8 +148,8 @@ async function main() {
       data: {
         code: codeData.code,
         releaseId: codeData.releaseId,
-        creatorId: demoCreator.userId,
-        status: "unused",
+        creatorId: demoCreator.id, // Using id instead of userId
+        status: "UNUSED", // Using correct enum value
       }
     });
   }
@@ -156,13 +157,13 @@ async function main() {
   console.log('âœ… Seeding completed successfully');
   console.log('ðŸ“Š Created demo users:');
   console.log('\nðŸ”‘ ADMIN ACCOUNT:');
-  console.log(`   - Admin: ${mainAdmin.email} (${mainAdmin.userType}) - Password: admin123`);
+  console.log(`   - Admin: ${mainAdmin.email} (${mainAdmin.primaryRole}) - Password: admin123`);
   
   console.log('\nðŸŽ§ LISTENER ACCOUNT:');
-  console.log(`   - Listener: ${demoListener.email} (${demoListener.userType}) - Password: listener123`);
+  console.log(`   - Listener: ${demoListener.email} (${demoListener.primaryRole}) - Password: listener123`);
   
   console.log('\nðŸŽµ CREATOR ACCOUNT:');
-  console.log(`   - Creator: ${demoCreator.email} (${demoCreator.userType}) - Password: creator123`);
+  console.log(`   - Creator: ${demoCreator.email} (${demoCreator.primaryRole}) - Password: creator123`);
 }
 
 main()

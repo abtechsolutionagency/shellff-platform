@@ -160,6 +160,7 @@ export class OfflineCache {
         format: asset.format,
       });
 
+      if (!asset.downloadUrl) throw new Error('No download URL available');
       const audioResponse = await fetch(asset.downloadUrl);
 
       if (!audioResponse.ok) throw new Error('Failed to download audio');

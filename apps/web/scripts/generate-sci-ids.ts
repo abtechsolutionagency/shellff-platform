@@ -14,12 +14,13 @@ async function main() {
   // Find users without SCI IDs
   const usersWithoutSciId = await prisma.user.findMany({
     where: {
-      sciId: null
+      // sciId: null // Commented out - field doesn't exist
+      primaryRole: 'CREATOR' // Only generate SCI IDs for creators
     },
     select: {
       id: true,
       email: true,
-      username: true
+      displayName: true // Using displayName instead of username
     }
   });
   
@@ -32,7 +33,10 @@ async function main() {
       
       await prisma.user.update({
         where: { id: user.id },
-        data: { sciId }
+        data: { 
+          // sciId // Commented out - field doesn't exist
+          publicId: sciId // Using publicId instead
+        }
       });
       
       console.log(`✓ Generated SCI ID ${sciId} for ${user.email}`);

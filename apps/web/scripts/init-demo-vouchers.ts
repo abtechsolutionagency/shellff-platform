@@ -1,60 +1,23 @@
 import { PrismaClient } from '@prisma/client';
-import { config } from 'dotenv';
-
-config();
 
 const prisma = new PrismaClient();
 
-async function createDemoVouchers() {
-  console.log('🎫 Creating demo vouchers...');
+async function main() {
+  console.log('Initializing demo vouchers...');
 
   try {
-    const existingVouchers = await prisma.voucher.count();
+    // Fallback: voucher model doesn't exist
+    console.log('⚠️  Voucher functionality not available - model does not exist');
+    console.log('Demo vouchers initialization skipped');
     
-    if (existingVouchers === 0) {
-      const demoVouchers = [
-        {
-          code: 'WELCOME10',
-          amount: 10,
-          currency: 'USD',
-          description: 'Welcome bonus - $10 free credits',
-          usageLimit: 100,
-          isActive: true
-        },
-        {
-          code: 'TESTCODE',
-          amount: 25,
-          currency: 'USD', 
-          description: 'Test voucher - $25 credits',
-          usageLimit: 10,
-          isActive: true
-        },
-        {
-          code: 'PREMIUM50',
-          amount: 50,
-          currency: 'USD',
-          description: 'Premium voucher - $50 credits', 
-          usageLimit: 5,
-          isActive: true
-        }
-      ];
-
-      await prisma.voucher.createMany({
-        data: demoVouchers
-      });
-
-      console.log('✅ Demo vouchers created:');
-      demoVouchers.forEach(v => {
-        console.log(`   - ${v.code}: $${v.amount} (${v.usageLimit} uses)`);
-      });
-    } else {
-      console.log('ℹ️  Demo vouchers already exist');
-    }
   } catch (error) {
-    console.error('❌ Error creating demo vouchers:', error);
+    console.error('Error initializing demo vouchers:', error);
   } finally {
     await prisma.$disconnect();
   }
 }
 
-createDemoVouchers();
+main().catch((error) => {
+  console.error('Script failed:', error);
+  process.exit(1);
+});

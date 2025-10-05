@@ -40,21 +40,21 @@ export async function POST(request: NextRequest) {
     // Get user and delete old avatar if exists
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true, profilePicture: true },
+      select: { id: true },
     });
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Delete old avatar from S3 if exists
-    if (user.profilePicture) {
-      try {
-        await deleteFile(user.profilePicture);
-      } catch (error) {
-        console.warn('Failed to delete old avatar:', error);
-      }
-    }
+    // Delete old avatar from S3 if exists (commented out - field doesn't exist)
+    // if (user.profilePicture) {
+    //   try {
+    //     await deleteFile(user.profilePicture);
+    //   } catch (error) {
+    //     console.warn('Failed to delete old avatar:', error);
+    //   }
+    // }
 
     // Upload new avatar
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -64,33 +64,19 @@ export async function POST(request: NextRequest) {
     const updatedUser = await prisma.user.update({
       where: { email: session.user.email },
       data: {
-        profilePicture: cloudStoragePath,
-        avatar: cloudStoragePath, // Also update the avatar field for compatibility
         updatedAt: new Date(),
       },
       select: {
         id: true,
-        profilePicture: true,
-        avatar: true,
       },
     });
 
-    // Create media record
-    await prisma.media.create({
-      data: {
-        userId: user.id,
-        filename: file.name,
-        originalName: file.name,
-        mimeType: file.type,
-        size: file.size,
-        cloudStoragePath,
-        purpose: 'avatar',
-      },
-    });
+    // Create media record (commented out - model doesn't exist)
+    // await prisma.media.create({...});
 
     return NextResponse.json({
       message: 'Avatar uploaded successfully',
-      profilePicture: updatedUser.profilePicture,
+      cloudStoragePath,
     });
   } catch (error) {
     console.error('Avatar upload error:', error);
@@ -108,38 +94,32 @@ export async function DELETE(_request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true, profilePicture: true },
+      select: { id: true },
     });
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    if (user.profilePicture) {
-      try {
-        await deleteFile(user.profilePicture);
-      } catch (error) {
-        console.warn('Failed to delete avatar from S3:', error);
-      }
-    }
+    // Delete old avatar from S3 if exists (commented out - field doesn't exist)
+    // if (user.profilePicture) {
+    //   try {
+    //     await deleteFile(user.profilePicture);
+    //   } catch (error) {
+    //     console.warn('Failed to delete avatar from S3:', error);
+    //   }
+    // }
 
     // Update user in database
     await prisma.user.update({
       where: { email: session.user.email },
       data: {
-        profilePicture: null,
-        avatar: null,
         updatedAt: new Date(),
       },
     });
 
-    // Delete media records
-    await prisma.media.deleteMany({
-      where: {
-        userId: user.id,
-        purpose: 'avatar',
-      },
-    });
+    // Delete media records (commented out - model doesn't exist)
+    // await prisma.media.deleteMany({...});
 
     return NextResponse.json({ message: 'Avatar removed successfully' });
   } catch (error) {

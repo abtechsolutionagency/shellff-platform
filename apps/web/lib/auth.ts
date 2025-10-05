@@ -46,14 +46,11 @@ export const authOptions: NextAuthOptions = {
           return {
             id: user.id,
             email: user.email,
-            name: user.username,
-            image: user.avatar,
-            userType: user.userType,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            userId: user.userId,
-            sciId: user.sciId,
-          };
+            name: user.displayName,
+            image: null,
+            primaryRole: user.primaryRole,
+            userType: user.primaryRole as any, // Cast to any to avoid enum mismatch
+          } as any;
         } catch (error) {
           console.error("Auth error:", error);
           return null;

@@ -43,9 +43,9 @@ export async function GET() {
         release: {
           include: {
             creator: {
-              select: { firstName: true, lastName: true, username: true },
+              select: { displayName: true, publicId: true },
             },
-            releaseTracks: {
+            tracks: {
               select: { id: true },
             },
           },

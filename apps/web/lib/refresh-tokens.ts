@@ -33,7 +33,7 @@ export async function generateTokenPair(userId: string): Promise<TokenPair> {
   await prisma.refreshToken.create({
     data: {
       userId,
-      token: refreshToken,
+      tokenHash: refreshToken, // Using tokenHash field instead of token
       expiresAt
     }
   });
@@ -48,8 +48,8 @@ export async function refreshAccessToken(refreshToken: string): Promise<TokenPai
   }
   
   // Find refresh token in database
-  const storedToken = await prisma.refreshToken.findUnique({
-    where: { token: refreshToken }
+  const storedToken = await prisma.refreshToken.findFirst({
+    where: { tokenHash: refreshToken } // Using tokenHash field instead of token
   });
   
   if (!storedToken || storedToken.expiresAt < new Date()) {

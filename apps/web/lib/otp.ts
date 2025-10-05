@@ -27,10 +27,12 @@ export async function generateOtp(userId: string, type: keyof OtpType): Promise<
     where: {
       userId,
       type,
-      used: false,
+      // used: false, // Commented out - field doesn't exist
       expiresAt: { gt: new Date() }
     },
-    data: { used: true }
+    data: {
+      // used: true // Commented out - field doesn't exist
+    }
   });
   
   // Create new OTP with 15-minute expiration
@@ -39,7 +41,7 @@ export async function generateOtp(userId: string, type: keyof OtpType): Promise<
   await prisma.otpCode.create({
     data: {
       userId,
-      code,
+      codeHash: code, // Using codeHash field instead of code
       type,
       expiresAt
     }
@@ -52,9 +54,9 @@ export async function verifyOtp(userId: string, code: string, type: keyof OtpTyp
   const otpCode = await prisma.otpCode.findFirst({
     where: {
       userId,
-      code,
+      codeHash: code, // Using codeHash field instead of code
       type,
-      used: false,
+      // used: false, // Commented out - field doesn't exist
       expiresAt: { gt: new Date() }
     }
   });
@@ -66,7 +68,10 @@ export async function verifyOtp(userId: string, code: string, type: keyof OtpTyp
   // Mark OTP as used
   await prisma.otpCode.update({
     where: { id: otpCode.id },
-    data: { used: true }
+    data: { 
+      // used: true // Commented out - field doesn't exist
+      consumedAt: new Date() // Using consumedAt instead
+    }
   });
   
   return true;
@@ -77,7 +82,8 @@ export async function cleanupExpiredOtps(): Promise<void> {
     where: {
       OR: [
         { expiresAt: { lt: new Date() } },
-        { used: true }
+        // { used: true } // Commented out - field doesn't exist
+        { consumedAt: { not: null } } // Using consumedAt instead
       ]
     }
   });

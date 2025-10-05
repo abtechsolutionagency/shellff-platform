@@ -24,10 +24,10 @@ export async function isAdmin(session: any): Promise<boolean> {
   try {
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { userType: true }
+      select: { primaryRole: true }
     });
 
-    return user?.userType === UserType.ADMIN;
+    return user?.primaryRole === 'ADMIN';
   } catch (error) {
     console.error('Error checking admin status:', error);
     return false;
@@ -50,18 +50,16 @@ export async function getCurrentAdminUser(): Promise<AdminUser | null> {
       select: {
         id: true,
         email: true,
-        username: true,
-        userType: true,
-        firstName: true,
-        lastName: true
+        displayName: true,
+        primaryRole: true,
       }
     });
 
-    if (!user || user.userType !== UserType.ADMIN) {
+    if (!user || user.primaryRole !== 'ADMIN') {
       return null;
     }
 
-    return user as AdminUser;
+    return user as unknown as AdminUser;
   } catch (error) {
     console.error('Error getting current admin user:', error);
     return null;

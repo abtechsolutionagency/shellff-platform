@@ -20,7 +20,7 @@ export async function generateUserId(): Promise<string> {
     
     // Check if this User ID already exists (very unlikely but safety check)
     const existingUser = await prisma.user.findUnique({
-      where: { userId }
+      where: { id: userId } // Using id field instead of userId
     });
     
     if (!existingUser) {
@@ -43,14 +43,14 @@ export async function generateSciId(): Promise<string> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     // Get next sequential SCI number
     const creatorCount = await prisma.user.count({
-      where: { sciId: { not: null } }
+      where: { primaryRole: 'CREATOR' } // Using primaryRole instead of sciId
     });
     const nextNumber = creatorCount + 1;
     const sciId = `SCI${nextNumber.toString().padStart(8, '0')}`;
     
     // Check if this SCI ID already exists (very unlikely but safety check)
-    const existingUser = await prisma.user.findUnique({
-      where: { sciId }
+    const existingUser = await prisma.user.findFirst({
+      where: { publicId: sciId } // Using publicId instead of sciId
     });
     
     if (!existingUser) {

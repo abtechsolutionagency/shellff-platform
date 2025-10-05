@@ -18,7 +18,7 @@ async function createDemoUser() {
       where: {
         OR: [
           { email: email },
-          { username: username }
+          // { username: username } // Commented out - field doesn't exist
         ]
       }
     });
@@ -26,10 +26,10 @@ async function createDemoUser() {
     if (existingUser) {
       console.log('⚠️  Demo user already exists!');
       console.log('📧 Email:', existingUser.email);
-      console.log('👤 Username:', existingUser.username);
-      console.log('🆔 User ID:', existingUser.userId);
-      console.log('🎵 SCI ID:', existingUser.sciId || 'N/A (Listener)');
-      console.log('📱 User Type:', existingUser.userType);
+      console.log('👤 Display Name:', existingUser.displayName);
+      console.log('🆔 User ID:', existingUser.id);
+      console.log('🎵 Public ID:', existingUser.publicId || 'N/A');
+      console.log('📱 User Type:', existingUser.primaryRole);
       console.log('\n🔑 Login credentials:');
       console.log('   Email: demo@shellff.com');
       console.log('   Password: demo123');
@@ -56,24 +56,24 @@ async function createDemoUser() {
       data: {
         email,
         passwordHash,
-        username,
-        firstName: 'Demo',
-        lastName: 'User',
-        userType: UserType.CREATOR,
-        userId,
-        sciId,
-        isVerified: true,
-        emailVerified: new Date(),
-        bio: 'Demo user account for testing Shellff platform features'
+        displayName: username, // Using displayName instead of username
+        // firstName: 'Demo', // Commented out - field doesn't exist
+        // lastName: 'User', // Commented out - field doesn't exist
+        primaryRole: 'CREATOR', // Using primaryRole instead of userType
+        // userId, // Commented out - field doesn't exist
+        // sciId, // Commented out - field doesn't exist
+        // isVerified: true, // Commented out - field doesn't exist
+        // emailVerified: new Date(), // Commented out - field doesn't exist
+        // bio: 'Demo user account for testing Shellff platform features' // Commented out - field doesn't exist
       }
     });
 
     console.log('✅ Demo user created successfully!');
     console.log('📧 Email:', demoUser.email);
-    console.log('👤 Username:', demoUser.username);
-    console.log('🆔 User ID:', demoUser.userId);
-    console.log('🎵 SCI ID:', demoUser.sciId);
-    console.log('📱 User Type:', demoUser.userType);
+    console.log('👤 Display Name:', demoUser.displayName);
+    console.log('🆔 User ID:', demoUser.id);
+    console.log('🎵 Public ID:', demoUser.publicId || 'N/A');
+    console.log('📱 User Type:', demoUser.primaryRole);
     console.log('✨ Account Status: Verified & Ready');
     console.log('\n🔑 Login credentials:');
     console.log('   Email: demo@shellff.com');

@@ -7,7 +7,7 @@ export const FIXTURE_ROOT_DIR = 'fixtures';
 export type RawFixtureDefinition = {
   relativePath: string;
   description: string;
-  data: Buffer;
+  data: Buffer | Uint8Array;
 };
 
 export type FixtureDefinition = RawFixtureDefinition & {
@@ -23,7 +23,7 @@ export type FixtureWriteResult = {
 };
 
 export function prepareDefinition(definition: RawFixtureDefinition): FixtureDefinition {
-  const expectedSha256 = createHash('sha256').update(definition.data).digest('hex');
+  const expectedSha256 = createHash('sha256').update(definition.data as any).digest('hex');
   return Object.freeze({
     ...definition,
     expectedSha256,
@@ -34,7 +34,7 @@ export function prepareDefinition(definition: RawFixtureDefinition): FixtureDefi
 export async function writeFixture(rootDir: string, definition: FixtureDefinition): Promise<FixtureWriteResult> {
   const absolutePath = join(rootDir, FIXTURE_ROOT_DIR, definition.relativePath);
   await mkdir(dirname(absolutePath), { recursive: true });
-  await writeFile(absolutePath, definition.data);
+  await writeFile(absolutePath, definition.data as any);
 
   return {
     relativePath: join(FIXTURE_ROOT_DIR, definition.relativePath),

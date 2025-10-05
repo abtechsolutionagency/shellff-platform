@@ -25,7 +25,7 @@ export default async function AnalyticsPage() {
     where: { email: session.user.email },
   });
 
-  if (!user || user.userType !== 'CREATOR') {
+  if (!user || user.primaryRole !== 'CREATOR') {
     redirect('/listener/home');
   }
 

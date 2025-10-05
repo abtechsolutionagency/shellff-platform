@@ -18,10 +18,10 @@ export async function adminMiddleware(request: NextRequest) {
     // Check if user is admin
     const user = await prisma.user.findUnique({
       where: { id: token.id as string },
-      select: { userType: true }
+      select: { primaryRole: true }
     });
 
-    if (!user || user.userType !== UserType.ADMIN) {
+    if (!user || user.primaryRole !== 'ADMIN') {
       return NextResponse.json(
         { error: 'Admin access required' }, 
         { status: 403 }

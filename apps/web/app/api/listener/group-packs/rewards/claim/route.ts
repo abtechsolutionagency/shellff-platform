@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     // 3. Award any associated rewards (SHC, badges, etc.)
 
     // For now, we'll simulate the claim process
-    console.log(`User ${user.userId} claimed achievement: ${achievementId}`)
+    console.log(`User ${user.id} claimed achievement: ${achievementId}`)
 
     // You could award SHC rewards here
     // await prisma.user.update({

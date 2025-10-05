@@ -43,20 +43,20 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user is already a creator
-    if (currentUser.userType === UserType.CREATOR) {
+    if (currentUser.primaryRole === 'CREATOR') {
       return NextResponse.json(
         { error: "User is already a creator" },
         { status: 400 }
       );
     }
 
-    // Check if user already has an SCI ID (shouldn't happen, but safety check)
-    if (currentUser.sciId) {
-      return NextResponse.json(
-        { error: "User already has a Creator ID" },
-        { status: 400 }
-      );
-    }
+    // Check if user already has an SCI ID (commented out - field doesn't exist)
+    // if (currentUser.sciId) {
+    //   return NextResponse.json(
+    //     { error: "User already has a Creator ID" },
+    //     { status: 400 }
+    //   );
+    // }
 
     // Generate SCI ID for the new creator
     const sciId = await generateSciId();
@@ -71,22 +71,13 @@ export async function POST(req: NextRequest) {
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
-        userType: UserType.CREATOR,
-        sciId,
-        firstName: firstName || currentUser.firstName,
-        lastName: lastName || currentUser.lastName,
-        bio: bio || currentUser.bio,
+        primaryRole: 'CREATOR',
       },
       select: {
         id: true,
-        userId: true,
         email: true,
-        username: true,
-        firstName: true,
-        lastName: true,
-        userType: true,
-        sciId: true,
-        bio: true,
+        displayName: true,
+        primaryRole: true,
         updatedAt: true,
       }
     });

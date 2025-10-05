@@ -25,16 +25,17 @@ async function main() {
   
   // Show summary
   const summary = await prisma.user.groupBy({
-    by: ['userType'],
+    by: ['primaryRole'], // Using primaryRole instead of userType
     _count: {
-      userId: true,
-      sciId: true
+      // userId: true, // Commented out - field doesn't exist
+      // sciId: true // Commented out - field doesn't exist
+      id: true // Using id instead
     }
   });
   
   console.log('\n=== MIGRATION SUMMARY ===');
   for (const group of summary) {
-    console.log(`${group.userType}: ${group._count.userId} users with User IDs, ${group._count.sciId} with SCI IDs`);
+    console.log(`${group.primaryRole}: ${group._count.id} users`); // Updated to use correct fields
   }
 }
 
