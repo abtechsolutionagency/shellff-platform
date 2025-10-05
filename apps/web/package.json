@@ -11,7 +11,8 @@
     "test:unit": "node ./scripts/run-vitest.mjs run",
     "test:pwa": "node ./scripts/run-vitest.mjs run --config vitest.config.pwa.ts",
     "generate:fixtures": "tsx ./scripts/generate-fixtures.ts",
-    "format": "prettier --check ."
+    "format": "prettier --check .",
+    "vercel-build": "next build"
   },
   "prisma": {
     "seed": "tsx --require dotenv/config scripts/seed.ts"

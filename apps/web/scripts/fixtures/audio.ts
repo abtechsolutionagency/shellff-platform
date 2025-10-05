@@ -69,7 +69,7 @@ const AUDIO_FIXTURE_DEFINITIONS: readonly FixtureDefinition[] = [
   //   relativePath: join('audio', 'sample.flac'),
   //   description: 'Synthetic FLAC payload composed from deterministic text bytes.',
   //   data: Buffer.concat([FLAC_PREAMBLE, FLAC_BODY]) as any,
-  // }),
+  // }),image.png
 ] as const;
 
 export const AUDIO_FIXTURES = AUDIO_FIXTURE_DEFINITIONS;
